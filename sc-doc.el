@@ -3,6 +3,8 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
+;; Version: 0.1
+;; Keywords: sclang supercollider languages tools
 
 ;; This file is not part of GNU Emacs.
 
@@ -27,6 +29,8 @@
 
 (require 'cl-lib)
 (require 'dash)
+(require 's)
+(require 'auto-complete)
 (autoload 'sclang-eval-string "sclang-help")
 
 (cl-defun scd--blocking-eval-string (expr &optional (timeout-ms 100))
@@ -60,7 +64,7 @@
 
 (defun scd--methods (class)
   "Return a list of methods implemented by CLASS."
-  (->> (concat class ".methods.collect {|m| [m.name, m.argList] } ")
+  (->> (concat class ".methods.collect {|m| [m.name, m.argList, m.ownerClass] } ")
     (scd--blocking-eval-string)
     (scd--deserialize)))
 
@@ -86,6 +90,82 @@
       (scd--blocking-eval-string)
       (s-replace "class" "")
       (scd--deserialize)))
+
+(defun sclang--expression-to-point ()
+  "Return the sclang expression on the current line up to point."
+  (->> (buffer-substring-no-properties (line-beginning-position) (point))
+    ;; Remove trailing `.` (member accessor)
+    (s-trim)
+    (s-chop-suffix ".")))
+
+;;; ----------------------------------------------------------------------------
+;;; Auto-completion
+
+(defvar scd--known-classes (-map 'symbol-name (scd--all-classes))
+  "A cache of all class names known to SuperCollider.")
+
+(defun scd--class-of-thing-at-point ()
+  "Test whether the thing at point is a class name.
+Return the name of the class if looking at a class name.
+Otherwise evaluate the expression to determine its class."
+  (let ((expr (sclang--expression-to-point)))
+    (if (-contains? scd--known-classes expr)
+        expr
+      (scd--class-of expr))))
+
+(defmacro when-sclang-class (varname &rest body)
+  "Bind the sclang expression at point to VARNAME and execute BODY forms."
+  (declare (indent 1))
+  `(let ((,varname (scd--class-of-thing-at-point)))
+     (when ,varname
+       ,@body)))
+
+(defvar scd--ac-method-cache nil
+  "Cache containing methods for auto-complete.")
+
+(defun scd--ac-init-methods (class)
+  "Get the list of methods for CLASS and process the list for auto-complete."
+  (--map (destructuring-bind (name arglist owner) it
+           ;; Turn method name symbol to string.
+           (list (symbol-name (eval name))
+                 (eval arglist)
+                 (symbol-name owner)))
+         (scd--methods class)))
+
+(defun scd--ac-method-documentation (method-name)
+  "Format a documentation page for METHOD-NAME."
+  (destructuring-bind (name arglist owner)
+      (assoc method-name scd--ac-method-cache)
+    ;; Build docstring.
+    (s-concat
+     (format "%s.%s\n\n" owner name)
+     (unless (s-blank? arglist) arglist))))
+
+;;; Method completion source.
+(ac-define-source sclang-methods
+  '((init       . (setq scd--ac-method-cache (when-sclang-class k
+                                              (scd--ac-init-methods k))))
+    (candidates . (-map 'car scd--ac-method-cache))
+    (document   . scd--ac-method-documentation)
+    (symbol     . "f")))
+
+;;; Instance variable completion source.
+(ac-define-source sclang-ivars
+  '((candidates . (when-sclang-class k
+                    (scd--instance-vars k)))
+    (symbol     . "v")))
+
+;;; ----------------------------------------------------------------------------
+
+(defun sclang-electric-dot ()
+  "Open the auto-complete menu with candidates for the preceding sclang form."
+  (interactive)
+  (insert-string ".")
+  (auto-complete (list ac-source-sclang-methods
+                       ac-source-sclang-ivars)))
+
+(when (boundp 'sclang-mode-map)
+  (define-key sclang-mode-map (kbd ".") 'sclang-electric-dot))
 
 (provide 'sc-doc)
 
