@@ -25,6 +25,8 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+(require 'dash)
 (autoload 'sclang-eval-string "sclang-help")
 
 (cl-defun scd--blocking-eval-string (expr &optional (timeout-ms 100))
@@ -32,9 +34,8 @@
   (let ((result nil)
         (elapsed 0)
         ;; Prevent expressions from crashing sclang.
-        (fmt (format "try { Emacs.message((%s).asString) } {|err|}" expr))
+        (fmt (format "try { Emacs.message((%s).asCompileString) } {|err|}" expr))
         )
-    ;; Stop compiler from compaining about flet.
     ;; SuperCollider will eval the string and then call back with the result.
     ;; We rebind Emacs' `message' action to intercept the response.
 
@@ -47,6 +48,44 @@
         (sleep-for 0 10)
         (setq elapsed (+ 10 elapsed)))
       result)))
+
+(defun scd--deserialize (str)
+  "Parse the SuperCollider response STR."
+  (->> str
+    ;; Parse SuperCollider arrays to lists.
+    (s-replace "," "")
+    (s-replace "[" "(")
+    (s-replace "]" ")")
+    (read)))
+
+(defun scd--methods (class)
+  "Return a list of methods implemented by CLASS."
+  (->> (concat class ".methods.collect {|m| [m.name, m.argList] } ")
+    (scd--blocking-eval-string)
+    (scd--deserialize)))
+
+(defun scd--instance-vars (class)
+  "Return a list of the instance variables of CLASS."
+  (->> (concat class ".instVarNames.collect(_.asString)")
+    (scd--blocking-eval-string)
+    (scd--deserialize)))
+
+(defun scd--class-vars (class)
+  "Return a list of the class variables of CLASS."
+  (->> (concat class ".classVarNames.collect(_.asString)")
+    (scd--blocking-eval-string)
+    (scd--deserialize)))
+
+(defun scd--class-of (expr)
+  "Evaluate EXPR and return the class of the result."
+  (scd--blocking-eval-string (format "(%s).class" expr)))
+
+(defun scd--all-classes ()
+  "Return the list of classes known to SuperCollider."
+  (->> "Class.allClasses.asArray"
+      (scd--blocking-eval-string)
+      (s-replace "class" "")
+      (scd--deserialize)))
 
 (provide 'sc-doc)
 
