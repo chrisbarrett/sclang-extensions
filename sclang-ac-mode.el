@@ -30,11 +30,12 @@
 
 ;;; Installation:
 
-;; Use Emacs' built-in package installer to install this package:
-;; M-x package-install-file RET path/to/this/file.el
+;; 1. Install the package dependencies, listed above.
 ;;
-;; Then add this mode to your sclang hooks:
-;; (add-hook 'sclang-mode-hook 'sclang-ac-mode)
+;; 2. Install this package with `M-x package-install-file`
+;;
+;; 3. Add this mode to your sclang hooks:
+;;    (add-hook 'sclang-mode-hook 'sclang-ac-mode)
 
 ;;; Code:
 
