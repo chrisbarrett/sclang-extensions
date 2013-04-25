@@ -68,7 +68,21 @@
   "The number of seconds to wait before displaying help for a completion item."
   :group 'sclang-ac)
 
+(defcustom sclang-ac-verbose
+  nil
+  "If non-nil, print extra debugging info to the messages buffer."
+  :group 'sclang-ac)
+
 ;;; ----------------------------------------------------------------------------
+
+(defmacro slc:logged (&rest body)
+  "Like `progn', but logs the result to messages if `sclang-ac-verbose' is non-nil."
+  (declare (indent 0))
+  (let ((result (cl-gensym)))
+    `(let ((,result (progn ,@body)))
+       (when sclang-ac-verbose
+         (message "[sclang-ac]: %s" ,result))
+       ,result)))
 
 (defun* slc:blocking-eval-string (expr &optional (timeout-ms 100))
   "Ask SuperCollider to evaluate the given string EXPR. Wait a maximum TIMEOUT-MS."
@@ -208,28 +222,32 @@
                  sub-str))))))
 
 (ac-define-source sclang-classes
-  '((candidates . (unless (slc:looking-at-member-access?)
-                    (slc:all-classes)))
+  '((candidates . (slc:logged
+                    (unless (slc:looking-at-member-access?)
+                      (slc:all-classes))))
     (document   . slc:class-documentation)
     (symbol     . "s")
     (limit      . nil)))
 
 (ac-define-source sclang-toplevel-functions
-  '((candidates . (unless (slc:looking-at-member-access?)
-                    (--map (slc:method-item slc:last-class it)
-                           (slc:methods "AbstractFunction"))))
+  '((candidates . (slc:logged
+                    (unless (slc:looking-at-member-access?)
+                      (--map (slc:method-item slc:last-class it)
+                             (slc:methods "AbstractFunction")))))
     (symbol     . "f")
     (limit      . nil)))
 
 (ac-define-source sclang-methods
-  '((candidates . (--map (slc:method-item slc:last-class it)
-                         (slc:methods slc:last-class)))
+  '((candidates . (slc:logged
+                    (--map (slc:method-item slc:last-class it)
+                           (slc:methods slc:last-class))))
     (prefix     . ac-prefix-default)
     (limit      . nil)
     (requires   . -1)))
 
 (ac-define-source sclang-ivars
-  '((candidates . (slc:instance-vars slc:last-class))
+  '((candidates . (slc:logged
+                    (slc:instance-vars slc:last-class)))
     (prefix     . ac-prefix-default)
     (symbol     . "v")
     (limit      . nil)
@@ -237,11 +255,12 @@
 
 (defun slc:class-of-thing-at-point ()
   "Return the class of the sclang expression at point."
-  (->> (buffer-substring-no-properties (line-beginning-position) (point))
-    ;; Remove trailing dot-accessor.
-    (s-trim)
-    (s-chop-suffix ".")
-    (slc:class-of)))
+  (slc:logged
+    (->> (buffer-substring-no-properties (line-beginning-position) (point))
+      ;; Remove trailing dot-accessor.
+      (s-trim)
+      (s-chop-suffix ".")
+      (slc:class-of))))
 
 ;;;###autoload
 (defun sclang-electric-dot ()
