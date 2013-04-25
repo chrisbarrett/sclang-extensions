@@ -2,6 +2,8 @@
 
 A minor mode that improves the auto-complete behaviour for the SuperCollider Emacs mode.
 
+![Autocomplete popup example](https://raw.github.com/chrisbarrett/sclang-ac-mode/master/sclang-ac-mode.png)
+
 ## Motivation
 
 The SuperCollider major mode for Emacs uses a dictionary of classes to provide

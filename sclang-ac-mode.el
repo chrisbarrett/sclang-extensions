@@ -230,7 +230,7 @@
 
      ;; Show the class summary.
      (-when-let (summary (slc:class-summary class))
-       (concat "\n\nsummary:\n" summary))
+       (concat ":\n" summary))
 
      ;; Show inheritance chain..
      (unless (s-blank? super)
