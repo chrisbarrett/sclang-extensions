@@ -153,6 +153,13 @@
       (slc:deserialize)
       (-map 'symbol-name))))
 
+(defun slc:class-summary (class)
+  "Return the summary for the given class."
+  (unless (s-blank? class)
+    (->>  (format "SCDoc.documents[\"Classes/%s\"].summary" class)
+      (slc:blocking-eval-string)
+      (slc:deserialize))))
+
 (defun slc:class-of (expr)
   "Evaluate EXPR and return the class of the result."
   (unless (s-blank? expr)
@@ -219,8 +226,16 @@
                        (s-join bullet )
                        (s-prepend bullet))))
     (s-concat
-     ;; Show either the class name or its inheritance hierarchy.
-     (if (s-blank? super) class (format "%s: %s" class super))
+     class
+
+     ;; Show the class summary.
+     (-when-let (summary (slc:class-summary class))
+       (concat "\n\nsummary:\n" summary))
+
+     ;; Show inheritance chain..
+     (unless (s-blank? super)
+       (format "\n\ninheritance chain:\n%s < %s" class super))
+
      ;; Show list of subclasses. It will be ellipsized if longer than MAX-SUBS.
      (when subclasses
        (format "\n\nsubclasses:%s"
