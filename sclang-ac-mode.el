@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Package-Requires: ((s "1.3.1") (dash "1.2.0") (cl-lib "0.2") (emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
@@ -231,6 +231,7 @@ Otherwise evaluate the expression to determine its class."
     (define-key map (kbd ".") 'sclang-electric-dot)
     map))
 
+;;;###autoload
 (define-minor-mode sclang-ac-mode
   "Minor mode that provides more intelligent auto-complete behaviour for SuperCollider."
   nil nil sclang-ac-mode-map
