@@ -154,8 +154,9 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Completion functions
 ;;
-;; Auto-complete works fine for top-level references to classes. Completion for
-;; object members requires a bespoke menu that can be triggered by pressing `.'
+;; Auto-complete works fine for top-level references to classes and abstract
+;; functions. Completion for object members requires a bespoke menu that can be
+;; triggered by pressing `.'
 
 ;;; Class completion
 
@@ -212,6 +213,22 @@ Otherwise evaluate the expression to determine its class."
                     scd--known-classes))
     (document   . scd--ac-class-documentation)
     (symbol     . "s")))
+
+;;; Function completion.
+
+(defvar scd--toplevel-functions nil
+  "A list of functions that can be called at the top-level.")
+
+(defun scd--abstract-functions ()
+  "Return a list of functions callable at the top-level."
+  (->> (scd--methods "AbstractFunction")
+    (--map (symbol-name (eval (car it))))))
+
+(ac-define-source sclang-toplevel-functions
+  '((init       . (setq scd--toplevel-functions (scd--abstract-functions)))
+    (candidates . (unless (scd--looking-at-member-access?)
+                    scd--toplevel-functions))
+    (symbol     . "f")))
 
 ;;; Member completion
 
@@ -289,7 +306,8 @@ Otherwise evaluate the expression to determine its class."
   ;; Body ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (auto-complete-mode +1)
   ;; Override the sources defined by sclang-mode.
-  (setq ac-sources (list ac-source-sclang-classes)))
+  (setq ac-sources (list ac-source-sclang-classes
+                         ac-source-sclang-toplevel-functions)))
 
 (provide 'sclang-ac-mode)
 
