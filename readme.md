@@ -21,14 +21,16 @@ no longer prompt you with `Array`!
 
 ## Installation
 
-Use Emacs' package manager to install `sclang-ac-mode.el`:
+1. Use `M-x package-install` to install the following dependencies:
 
-```
-M-x package-install-file RET path/to/sclang-ac-mode.el RET
-```
+  * s
+  * dash
+  * auto-complete
 
-Then add the following to your init.el:
+2. Use `M-x package-install-file` to install sclang-ac-mode.el
 
-```lisp
-(add-hook 'sclang-mode-hook 'sclang-ac-mode)
-```
+3. Add the following to your init.el:
+
+  ```lisp
+  (add-hook 'sclang-mode-hook 'sclang-ac-mode)
+  ```
