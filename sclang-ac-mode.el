@@ -1,4 +1,4 @@
-;;; sclang-ac-mode --- Improved auto-complete for SuperCollider.
+;;; sclang-ac-mode.el --- Improved auto-complete for SuperCollider.
 
 ;; Copyright (C) 2013 Chris Barrett
 
@@ -30,8 +30,11 @@
 
 ;;; Installation:
 
-;; Use Emacs' built-in package installer to install this package.
-;; M-x package-install-file
+;; Use Emacs' built-in package installer to install this package:
+;; M-x package-install-file RET path/to/this/file.el
+;;
+;; Then add this mode to your sclang hooks:
+;; (add-hook 'sclang-mode-hook 'sclang-ac-mode)
 
 ;;; Code:
 
@@ -40,6 +43,7 @@
 (require 's)
 (require 'auto-complete)
 (autoload 'sclang-eval-string "sclang-help")
+(autoload 'thing-at-point-looking-at "thingatpt")
 
 (cl-defun scd--blocking-eval-string (expr &optional (timeout-ms 100))
   "Ask SuperCollider to evaluate the given string EXPR. Wait a maximum TIMEOUT-MS."
@@ -235,6 +239,9 @@ Otherwise evaluate the expression to determine its class."
   (setq ac-sources (list ac-source-sclang-classes)))
 
 (provide 'sclang-ac-mode)
+
+;;; NB: We need to use `flet' to dynamically rebind `message'. Suppress the
+;;; compiler warning for this.
 
 ;; Local Variables:
 ;; lexical-binding: t
