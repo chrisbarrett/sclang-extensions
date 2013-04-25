@@ -25,9 +25,17 @@
 
 ;;; Code:
 
+(package-initialize)
+
+(dolist (pkg '(auto-complete dash popup s))
+  (unless (package-installed-p pkg)
+    (package-install pkg)))
+
 (require 'ert)
-(require 'dash)
+(require 'sclang)
 (require 'sclang-ac-mode)
+
+;;; ----------------------------------------------------------------------------
 
 (defmacro check (desc &rest body)
   "Wrap `ert-deftest' with a simpler interface.
