@@ -47,7 +47,8 @@
 
 (defgroup sclang-ac nil
   "Improved auto-complete for SuperCollider."
-  :group 'languages)
+  :group 'languages
+  :prefix "sclang-ac")
 
 ;;; Customizable vars.
 
@@ -69,7 +70,7 @@
 
 ;;; ----------------------------------------------------------------------------
 
-(defun* scd--blocking-eval-string (expr &optional (timeout-ms 100))
+(defun* slc:blocking-eval-string (expr &optional (timeout-ms 100))
   "Ask SuperCollider to evaluate the given string EXPR. Wait a maximum TIMEOUT-MS."
   (unless (s-blank? expr)
     (let ((result nil)
@@ -90,7 +91,7 @@
           (setq elapsed (+ 10 elapsed)))
         result))))
 
-(defun scd--deserialize (str)
+(defun slc:deserialize (str)
   "Parse the SuperCollider response STR."
   (when str
     (->> str
@@ -100,147 +101,74 @@
       (s-replace "]" ")")
       (read))))
 
-(defun scd--methods (class)
+(defun slc:methods (class)
   "Return a list of methods implemented by CLASS."
   (->> (concat class ".methods.collect {|m| [m.name, m.argList, m.ownerClass] } ")
-    (scd--blocking-eval-string)
-    (scd--deserialize)))
+    (slc:blocking-eval-string)
+    (slc:deserialize)))
 
-(defun scd--instance-vars (class)
+(defun slc:instance-vars (class)
   "Return a list of the instance variables of CLASS."
   (->> (concat class ".instVarNames.collect(_.asString)")
-    (scd--blocking-eval-string)
-    (scd--deserialize)))
+    (slc:blocking-eval-string)
+    (slc:deserialize)))
 
-(defun scd--class-vars (class)
+(defun slc:class-vars (class)
   "Return a list of the class variables of CLASS."
   (->> (concat class ".classVarNames.collect(_.asString)")
-    (scd--blocking-eval-string)
-    (scd--deserialize)))
+    (slc:blocking-eval-string)
+    (slc:deserialize)))
 
-(defun scd--superclasses (class)
+(defun slc:superclasses (class)
   "Return a list of superclasses for CLASS."
   (->> (concat class ".superclasses")
-    (scd--blocking-eval-string)
-    (scd--deserialize)
+    (slc:blocking-eval-string)
+    (slc:deserialize)
     (-map 'symbol-name)))
 
-(defun scd--subclasses (class)
+(defun slc:subclasses (class)
   "Return the direct subclasses of CLASS."
   (->> (concat class ".subclasses")
-    (scd--blocking-eval-string)
-    (scd--deserialize)
+    (slc:blocking-eval-string)
+    (slc:deserialize)
     (-map 'symbol-name)))
 
-(defun scd--class-of (expr)
+(defun slc:class-of (expr)
   "Evaluate EXPR and return the class of the result."
-  (scd--blocking-eval-string (format "(%s).class" expr)))
+  (slc:blocking-eval-string (format "(%s).class" expr)))
 
-(defun scd--all-classes ()
+(defun slc:all-classes ()
   "Return the list of classes known to SuperCollider."
   (->> "Class.allClasses.asArray"
-      (scd--blocking-eval-string)
+      (slc:blocking-eval-string)
       (s-replace "class" "")
-      (scd--deserialize)
+      (slc:deserialize)
       (-map 'symbol-name)))
 
-(defun scd--expression-to-point ()
-  "Return the sclang expression on the current line up to point."
-  (->> (buffer-substring-no-properties (line-beginning-position) (point))
-    ;; Remove trailing `.` (member accessor)
-    (s-trim)
-    (s-chop-suffix ".")))
+(defun slc:looking-at-member-access? ()
+  "Return point if not looking at a member access."
+  (when (s-contains? "." (thing-at-point 'line ))
+    (point)))
 
 ;;; ----------------------------------------------------------------------------
-;;; Completion functions
+;;; Completion sources.
 ;;
-;; Auto-complete works fine for top-level references to classes and abstract
-;; functions. Completion for object members requires a bespoke menu that can be
-;; triggered by pressing `.'
+;; Completion sources that require a reference to an object (i.e. methods,
+;; instance vars) use the `slc:last-class' variable. This ensures that we know
+;; which class to operate on regardless of buffer insertions caused by the
+;; completion.
 
-;;; Class completion
+(defvar slc:last-class nil
+  "The class to use for completion candidates.")
 
-(defvar scd--known-classes nil
-  "A cache of all class names known to SuperCollider.")
-
-(defun scd--class-of-thing-at-point ()
-  "Test whether the thing at point is a class name.
-Return the name of the class if looking at a class name.
-Otherwise evaluate the expression to determine its class."
-  (let ((expr (scd--expression-to-point)))
-    (scd--class-of expr)
-    ;; (if (-contains? scd--known-classes expr)
-    ;;     expr
-    ;;   (scd--class-of expr))
-    ))
-
-(defmacro when-sclang-class (varname &rest body)
-  "Bind the sclang expression at point to VARNAME and execute BODY forms."
-  (declare (indent 1))
-  `(-when-let (,varname (scd--class-of-thing-at-point))
-     ,@body))
-
-(defun scd--class-documentation (class)
-  "Format a help popup for CLASS."
-  (let* ((super (s-join " < " (scd--superclasses class)))
-         ;; Take a set number of subclasses before ellispsizing.
-         (max-subs 5)
-         (bullet "\n• ")
-         (subclasses (scd--subclasses class))
-         (sub-str    (->> subclasses
-                       (-take max-subs)
-                       (s-join bullet )
-                       (s-prepend bullet))))
-    (s-concat
-     ;; Show either the class name or its inheritance hierarchy.
-     (if (s-blank? super) (format "%s: %s" class super) class)
-     ;; Show list of subclasses. It will be ellipsized if longer than MAX-SUBS.
-     (when subclasses
-       (format "\n\nsubclasses:%s"
-               (if (< max-subs (length subclasses))
-                   (s-append "\n  …" sub-str)
-                 sub-str))))))
-
-(defun scd--looking-at-member-access? ()
-  "Non-nil if the expression at point is a member access."
-  (save-excursion
-    (forward-word -1)
-    (thing-at-point-looking-at "[.]")))
-
-(ac-define-source sclang-classes
-  '((init       . (setq scd--known-classes (scd--all-classes)))
-    (candidates . (unless (scd--looking-at-member-access?)
-                    scd--known-classes))
-    (document   . scd--ac-class-documentation)
-    (symbol     . "s")))
-
-;;; Function completion.
-
-(defvar scd--toplevel-functions nil
-  "A list of functions that can be called at the top-level.")
-
-(defun scd--abstract-functions ()
-  "Return a list of functions callable at the top-level."
-  (->> (scd--methods "AbstractFunction")
-    (--map (symbol-name (eval (car it))))))
-
-(ac-define-source sclang-toplevel-functions
-  '((init       . (setq scd--toplevel-functions (scd--abstract-functions)))
-    (candidates . (unless (scd--looking-at-member-access?)
-                    scd--toplevel-functions))
-    (symbol     . "f")))
-
-;;; Member completion
-
-(defun* scd--method-item (class (name arglist owner))
+(defun* slc:method-item (class (name arglist owner))
   "Return a popup item for the corresponding sclang method item."
   (let ((name (symbol-name (eval name)))
         (arglist (eval arglist))
         (owner (symbol-name owner)))
     (popup-make-item
      name
-     :symbol name
-     :summary "f"
+     :symbol "f"
 
      :document
      (s-concat
@@ -258,37 +186,76 @@ Otherwise evaluate the expression to determine its class."
          'sclang-ac-defined-member-selection-face
        'popup-selection-face))))
 
-(defun scd--method-popup-items (class)
-  "Return a list of method popup-items for the given CLASS."
-  (--map (scd--method-item class it)
-         (scd--methods class)))
+(defun slc:class-documentation (class)
+  "Format a help popup for CLASS."
+  (let* ((super (s-join " < " (slc:superclasses class)))
+         ;; Take a set number of subclasses before ellispsizing.
+         (max-subs 5)
+         (bullet "\n• ")
+         (subclasses (slc:subclasses class))
+         (sub-str    (->> subclasses
+                       (-take max-subs)
+                       (s-join bullet )
+                       (s-prepend bullet))))
+    (s-concat
+     ;; Show either the class name or its inheritance hierarchy.
+     (if (s-blank? super) class (format "%s: %s" class super))
+     ;; Show list of subclasses. It will be ellipsized if longer than MAX-SUBS.
+     (when subclasses
+       (format "\n\nsubclasses:%s"
+               (if (< max-subs (length subclasses))
+                   (s-append "\n  …" sub-str)
+                 sub-str))))))
 
-(defun scd--ivar-popup-items (class)
-  "Return a list of variable popup-items for the given CLASS."
-  (--map (popup-make-item
-          it
-          :symbol it
-          :summary "v")
-         (scd--instance-vars class)))
+(ac-define-source sclang-classes
+  '((candidates . (unless (slc:looking-at-member-access?)
+                    (slc:all-classes)))
+    (document   . slc:class-documentation)
+    (symbol     . "s")
+    (limit      . nil)))
 
-(defun scd--sort-popup-items (items)
-  "Sort ITEMS alphabetically."
-  (sort items (lambda (L R)
-                (string< (popup-item-symbol L)
-                         (popup-item-symbol R)))))
+(ac-define-source sclang-toplevel-functions
+  '((candidates . (unless (slc:looking-at-member-access?)
+                    (--map (slc:method-item slc:last-class it)
+                           (slc:methods "AbstractFunction"))))
+    (symbol     . "f")
+    (limit      . nil)))
+
+(ac-define-source sclang-methods
+  '((candidates . (--map (slc:method-item slc:last-class it)
+                         (slc:methods slc:last-class)))
+    (prefix     . ac-prefix-default)
+    (limit      . nil)
+    (requires   . -1)))
+
+(ac-define-source sclang-ivars
+  '((candidates . (slc:instance-vars slc:last-class))
+    (prefix     . ac-prefix-default)
+    (symbol     . "v")
+    (limit      . nil)
+    (requires   . -1)))
+
+(defun slc:class-of-thing-at-point ()
+  "Return the class of the sclang expression at point."
+  (->> (buffer-substring-no-properties (line-beginning-position) (point))
+    ;; Remove trailing dot-accessor.
+    (s-trim)
+    (s-chop-suffix ".")
+    (slc:class-of)))
 
 ;;;###autoload
 (defun sclang-electric-dot ()
-  "Open the auto-complete menu with candidates for the preceding sclang form."
+  "Insert a dot and access members for the sclang expr before point."
   (interactive)
-  (insert-string ".")
-  (when-sclang-class k
-    (insert-string
-     (popup-menu*
-      (scd--sort-popup-items (-concat (scd--method-popup-items k)
-                                      (scd--ivar-popup-items k)))
-      :help-delay sclang-ac-popup-help-delay
-      :scroll-bar t))))
+
+  ;; Update the reference to the last class before starting completion.
+  (-when-let (k (slc:class-of-thing-at-point))
+    (setq slc:last-class k))
+
+  (insert ".")
+
+  (let ((ac-expand-on-auto-complete t))
+    (auto-complete '(ac-source-sclang-ivars ac-source-sclang-methods))))
 
 ;;; ----------------------------------------------------------------------------
 
@@ -303,11 +270,15 @@ Otherwise evaluate the expression to determine its class."
 (define-minor-mode sclang-ac-mode
   "Minor mode that provides more intelligent auto-complete behaviour for SuperCollider."
   nil nil sclang-ac-mode-map
-  ;; Body ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  (auto-complete-mode +1)
+
   ;; Override the sources defined by sclang-mode.
-  (setq ac-sources (list ac-source-sclang-classes
-                         ac-source-sclang-toplevel-functions)))
+  (setq ac-sources '(ac-source-yasnippet
+                     ac-source-sclang-ivars
+                     ac-source-sclang-classes
+                     ac-source-sclang-methods
+                     ac-source-sclang-toplevel-functions))
+
+  (auto-complete-mode +1))
 
 (provide 'sclang-ac-mode)
 

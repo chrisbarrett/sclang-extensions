@@ -59,7 +59,7 @@
 (with-temp-buffer (sclang-start))
 
 (check "methods for SinOsc should contain AR"
-  (should (-contains? (-flatten (scd--methods "SinOsc.class"))
+  (should (-contains? (-flatten (slc:methods "SinOsc.class"))
                       'ar)))
 
 (provide 'sclang-ac-mode-tests)
