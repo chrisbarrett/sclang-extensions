@@ -91,7 +91,7 @@
     (let ((result nil)
           (elapsed 0)
           ;; Prevent expressions from crashing sclang.
-          (fmt (format "try { Emacs.message((%s).asCompileString) } {|err|}" expr))
+          (fmt (format "try { Emacs.message((%s).asCompileString) } {|err| err;}" expr))
           )
       ;; SuperCollider will eval the string and then call back with the result.
       ;; We rebind Emacs' `message' action to intercept the response.
@@ -118,39 +118,45 @@
 
 (defun slc:methods (class)
   "Return a list of methods implemented by CLASS."
-  (->> (concat class ".methods.collect {|m| [m.name, m.argList, m.ownerClass] } ")
-    (slc:blocking-eval-string)
-    (slc:deserialize)))
+  (unless (s-blank? class)
+    (->> (concat class ".methods.collect {|m| [m.name, m.argList, m.ownerClass] } ")
+      (slc:blocking-eval-string)
+      (slc:deserialize))))
 
 (defun slc:instance-vars (class)
   "Return a list of the instance variables of CLASS."
-  (->> (concat class ".instVarNames.collect(_.asString)")
-    (slc:blocking-eval-string)
-    (slc:deserialize)))
+  (unless (s-blank? class)
+    (->> (concat class ".instVarNames.collect(_.asString)")
+      (slc:blocking-eval-string)
+      (slc:deserialize))))
 
 (defun slc:class-vars (class)
   "Return a list of the class variables of CLASS."
-  (->> (concat class ".classVarNames.collect(_.asString)")
-    (slc:blocking-eval-string)
-    (slc:deserialize)))
+  (unless (s-blank? class)
+    (->> (concat class ".classVarNames.collect(_.asString)")
+      (slc:blocking-eval-string)
+      (slc:deserialize))))
 
 (defun slc:superclasses (class)
   "Return a list of superclasses for CLASS."
-  (->> (concat class ".superclasses")
-    (slc:blocking-eval-string)
-    (slc:deserialize)
-    (-map 'symbol-name)))
+  (unless (s-blank? class)
+    (->> (concat class ".superclasses")
+      (slc:blocking-eval-string)
+      (slc:deserialize)
+      (-map 'symbol-name))))
 
 (defun slc:subclasses (class)
   "Return the direct subclasses of CLASS."
-  (->> (concat class ".subclasses")
-    (slc:blocking-eval-string)
-    (slc:deserialize)
-    (-map 'symbol-name)))
+  (unless (s-blank? class)
+    (->> (concat class ".subclasses")
+      (slc:blocking-eval-string)
+      (slc:deserialize)
+      (-map 'symbol-name))))
 
 (defun slc:class-of (expr)
   "Evaluate EXPR and return the class of the result."
-  (slc:blocking-eval-string (format "(%s).class" expr)))
+  (unless (s-blank? expr)
+    (slc:blocking-eval-string (format "(%s).class" expr))))
 
 (defun slc:all-classes ()
   "Return the list of classes known to SuperCollider."
