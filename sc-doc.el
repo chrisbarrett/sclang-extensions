@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 0.1
+;; Version: 20130424.1430
 ;; Keywords: sclang supercollider languages tools
 
 ;; This file is not part of GNU Emacs.
@@ -35,23 +35,24 @@
 
 (cl-defun scd--blocking-eval-string (expr &optional (timeout-ms 100))
   "Ask SuperCollider to evaluate the given string EXPR. Wait a maximum TIMEOUT-MS."
-  (let ((result nil)
-        (elapsed 0)
-        ;; Prevent expressions from crashing sclang.
-        (fmt (format "try { Emacs.message((%s).asCompileString) } {|err|}" expr))
-        )
-    ;; SuperCollider will eval the string and then call back with the result.
-    ;; We rebind Emacs' `message' action to intercept the response.
+  (unless (s-blank? expr)
+    (let ((result nil)
+          (elapsed 0)
+          ;; Prevent expressions from crashing sclang.
+          (fmt (format "try { Emacs.message((%s).asCompileString) } {|err|}" expr))
+          )
+      ;; SuperCollider will eval the string and then call back with the result.
+      ;; We rebind Emacs' `message' action to intercept the response.
 
-    (flet ((message (str &rest _) (setq result str)))
+      (flet ((message (str &rest _) (setq result str)))
 
-      (sclang-eval-string fmt)
+        (sclang-eval-string fmt)
 
-      ;; Block until we receive a response or the timeout expires.
-      (while (and (not result) (> timeout-ms elapsed))
-        (sleep-for 0 10)
-        (setq elapsed (+ 10 elapsed)))
-      result)))
+        ;; Block until we receive a response or the timeout expires.
+        (while (and (not result) (> timeout-ms elapsed))
+          (sleep-for 0 10)
+          (setq elapsed (+ 10 elapsed)))
+        result))))
 
 (defun scd--deserialize (str)
   "Parse the SuperCollider response STR."
@@ -80,6 +81,20 @@
     (scd--blocking-eval-string)
     (scd--deserialize)))
 
+(defun scd--superclasses (class)
+  "Return a list of superclasses for CLASS."
+  (->> (concat class ".superclasses")
+    (scd--blocking-eval-string)
+    (scd--deserialize)
+    (-map 'symbol-name)))
+
+(defun scd--subclasses (class)
+  "Return the direct subclasses of CLASS."
+  (->> (concat class ".subclasses")
+    (scd--blocking-eval-string)
+    (scd--deserialize)
+    (-map 'symbol-name)))
+
 (defun scd--class-of (expr)
   "Evaluate EXPR and return the class of the result."
   (scd--blocking-eval-string (format "(%s).class" expr)))
@@ -89,9 +104,10 @@
   (->> "Class.allClasses.asArray"
       (scd--blocking-eval-string)
       (s-replace "class" "")
-      (scd--deserialize)))
+      (scd--deserialize)
+      (-map 'symbol-name)))
 
-(defun sclang--expression-to-point ()
+(defun scd--expression-to-point ()
   "Return the sclang expression on the current line up to point."
   (->> (buffer-substring-no-properties (line-beginning-position) (point))
     ;; Remove trailing `.` (member accessor)
@@ -101,14 +117,17 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Auto-completion
 
-(defvar scd--known-classes (-map 'symbol-name (scd--all-classes))
+(defvar scd--known-classes nil
   "A cache of all class names known to SuperCollider.")
+
+(defvar scd--ac-method-cache nil
+  "Cache containing methods for auto-complete.")
 
 (defun scd--class-of-thing-at-point ()
   "Test whether the thing at point is a class name.
 Return the name of the class if looking at a class name.
 Otherwise evaluate the expression to determine its class."
-  (let ((expr (sclang--expression-to-point)))
+  (let ((expr (scd--expression-to-point)))
     (if (-contains? scd--known-classes expr)
         expr
       (scd--class-of expr))))
@@ -120,9 +139,6 @@ Otherwise evaluate the expression to determine its class."
      (when ,varname
        ,@body)))
 
-(defvar scd--ac-method-cache nil
-  "Cache containing methods for auto-complete.")
-
 (defun scd--ac-init-methods (class)
   "Get the list of methods for CLASS and process the list for auto-complete."
   (--map (destructuring-bind (name arglist owner) it
@@ -132,14 +148,41 @@ Otherwise evaluate the expression to determine its class."
                  (symbol-name owner)))
          (scd--methods class)))
 
-(defun scd--ac-method-documentation (method-name)
-  "Format a documentation page for METHOD-NAME."
+(defun scd--ac-method-documentation (method)
+  "Format a help popup for METHOD."
   (destructuring-bind (name arglist owner)
-      (assoc method-name scd--ac-method-cache)
+      (assoc method scd--ac-method-cache)
     ;; Build docstring.
     (s-concat
      (format "%s.%s\n\n" owner name)
      (unless (s-blank? arglist) arglist))))
+
+(defun scd--ac-class-documentation (class)
+  "Format a help popup for CLASS."
+  (let* ((super (s-join " < " (scd--superclasses class)))
+         ;; Take a set number of subclasses before ellispsizing.
+         (max-subs 5)
+         (bullet "\n• ")
+         (subclasses (scd--subclasses class))
+         (sub-str    (->> subclasses
+                       (-take max-subs)
+                       (s-join bullet )
+                       (s-prepend bullet))))
+    (s-concat
+     ;; Show either the class name or its inheritance hierarchy.
+     (if (s-blank? super) (format "%s: %s" class super) class)
+     ;; Show list of subclasses. It will be ellipsized if longer than MAX-SUBS.
+     (when subclasses
+       (format "\n\nsubclasses:%s"
+               (if (< max-subs (length subclasses))
+                   (s-append "\n  …" sub-str)
+                 sub-str))))))
+
+(defun scd--looking-at-member-access? ()
+  "Non-nil if the expression at point is a member access."
+  (save-excursion
+    (forward-word -1)
+    (thing-at-point-looking-at "[.]")))
 
 ;;; Method completion source.
 (ac-define-source sclang-methods
@@ -155,6 +198,14 @@ Otherwise evaluate the expression to determine its class."
                     (scd--instance-vars k)))
     (symbol     . "v")))
 
+;;; Class completion source.
+(ac-define-source sclang-classes
+  '((init       . (setq scd--known-classes (scd--all-classes)))
+    (candidates . (unless (scd--looking-at-member-access?)
+                    scd--known-classes))
+    (document   . scd--ac-class-documentation)
+    (symbol     . "s")))
+
 ;;; ----------------------------------------------------------------------------
 
 (defun sclang-electric-dot ()
@@ -164,8 +215,14 @@ Otherwise evaluate the expression to determine its class."
   (auto-complete (list ac-source-sclang-methods
                        ac-source-sclang-ivars)))
 
-(when (boundp 'sclang-mode-map)
-  (define-key sclang-mode-map (kbd ".") 'sclang-electric-dot))
+(eval-after-load "sclang"
+  '(progn
+     (when(boundp 'sclang-mode-map)
+       (define-key sclang-mode-map (kbd ".") 'sclang-electric-dot))
+
+     (add-hook 'sclang-mode-hook
+               (lambda ()
+                 (setq ac-sources (list ac-source-sclang-classes))))))
 
 (provide 'sc-doc)
 
