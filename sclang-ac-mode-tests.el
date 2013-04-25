@@ -1,4 +1,4 @@
-;;; sc-doc-tests --- Tests for sc-doc
+;;; sclang-ac-mode-tests --- Tests for sclang-ac-mode
 
 ;; Copyright (C) 2013 Chris Barrett
 
@@ -21,12 +21,13 @@
 
 ;;; Commentary:
 
-;; Tests for sc-doc
+;; Tests for sclang-ac-mode
 
 ;;; Code:
 
 (require 'ert)
 (require 'dash)
+(require 'sclang-ac-mode)
 
 (defmacro check (desc &rest body)
   "Wrap `ert-deftest' with a simpler interface.
@@ -53,10 +54,10 @@
   (should (-contains? (-flatten (scd--methods "SinOsc.class"))
                       'ar)))
 
-(provide 'sc-doc-tests)
+(provide 'sclang-ac-mode-tests)
 
 ;; Local Variables:
 ;; lexical-binding: t
 ;; End:
 
-;;; sc-doc-tests.el ends here
+;;; sclang-ac-mode-tests.el ends here

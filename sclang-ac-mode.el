@@ -1,9 +1,10 @@
-;;; sc-doc --- SuperCollider documentation bindings.
+;;; sclang-ac-mode --- Improved auto-complete for SuperCollider.
 
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 20130424.1430
+;; Version: 0.2.0
+;; Package-Requires: ((s "1.3.1") (dash "1.2.0") (cl-lib "0.2") (emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
 ;; This file is not part of GNU Emacs.
@@ -23,7 +24,14 @@
 
 ;;; Commentary:
 
-;; SuperCollider documentation bindings.
+;; Provides `sclang-ac-mode', a minor-mode that overrides the default
+;; auto-complete behavior for sclang-mode.  Communicates with the SuperCollider
+;; runtime to provide more intelligent auto-complete candidates.
+
+;;; Installation:
+
+;; Use Emacs' built-in package installer to install this package.
+;; M-x package-install-file
 
 ;;; Code:
 
@@ -135,9 +143,8 @@ Otherwise evaluate the expression to determine its class."
 (defmacro when-sclang-class (varname &rest body)
   "Bind the sclang expression at point to VARNAME and execute BODY forms."
   (declare (indent 1))
-  `(let ((,varname (scd--class-of-thing-at-point)))
-     (when ,varname
-       ,@body)))
+  `(-when-let ((,varname (scd--class-of-thing-at-point)))
+     ,@body))
 
 (defun scd--ac-init-methods (class)
   "Get the list of methods for CLASS and process the list for auto-complete."
@@ -215,20 +222,23 @@ Otherwise evaluate the expression to determine its class."
   (auto-complete (list ac-source-sclang-methods
                        ac-source-sclang-ivars)))
 
-(eval-after-load "sclang"
-  '(progn
-     (when(boundp 'sclang-mode-map)
-       (define-key sclang-mode-map (kbd ".") 'sclang-electric-dot))
+(defvar sclang-ac-mode-map
+  (let ((map (make-keymap)))
+    (define-key map (kbd ".") 'sclang-electric-dot)
+    map))
 
-     (add-hook 'sclang-mode-hook
-               (lambda ()
-                 (setq ac-sources (list ac-source-sclang-classes))))))
+(define-minor-mode sclang-ac-mode
+  "Minor mode that provides more intelligent auto-complete behaviour for SuperCollider."
+  nil nil sclang-ac-mode-map
+  ;; Body
+  ;; Override the sources defined by sclang-mode.
+  (setq ac-sources (list ac-source-sclang-classes)))
 
-(provide 'sc-doc)
+(provide 'sclang-ac-mode)
 
 ;; Local Variables:
 ;; lexical-binding: t
 ;; byte-compile-warnings: (not obsolete)
 ;; End:
 
-;;; sc-doc.el ends here
+;;; sclang-ac-mode.el ends here
