@@ -3,8 +3,8 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 0.2.1
-;; Package-Requires: ((s "1.3.1") (dash "1.2.0") (cl-lib "0.2") (emacs "24.1"))
+;; Version: 0.2.2
+;; Package-Requires: ((auto-complete "1.4.0") (s "1.3.1") (dash "1.2.0") (cl-lib "0.2") (emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
 ;; This file is not part of GNU Emacs.
@@ -147,7 +147,7 @@ Otherwise evaluate the expression to determine its class."
 (defmacro when-sclang-class (varname &rest body)
   "Bind the sclang expression at point to VARNAME and execute BODY forms."
   (declare (indent 1))
-  `(-when-let ((,varname (scd--class-of-thing-at-point)))
+  `(-when-let (,varname (scd--class-of-thing-at-point))
      ,@body))
 
 (defun scd--ac-init-methods (class)
@@ -235,14 +235,14 @@ Otherwise evaluate the expression to determine its class."
 (define-minor-mode sclang-ac-mode
   "Minor mode that provides more intelligent auto-complete behaviour for SuperCollider."
   nil nil sclang-ac-mode-map
-  ;; Body
+  ;; Body ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (auto-complete-mode +1)
   ;; Override the sources defined by sclang-mode.
   (setq ac-sources (list ac-source-sclang-classes)))
 
 (provide 'sclang-ac-mode)
 
-;;; NB: We need to use `flet' to dynamically rebind `message'. Suppress the
-;;; compiler warning for this.
+;;; NB: We need to use `flet', an obsolete macro. Suppress the usage warning.
 
 ;; Local Variables:
 ;; lexical-binding: t
