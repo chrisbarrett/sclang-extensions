@@ -3,6 +3,8 @@ emacs   = emacs
 src     = sclang-ac-mode.el
 tests   = sclang-ac-mode-tests.el
 
+reinstall : uninstall install
+
 # Install the package into the emacs elpa directory.
 install :
 	$(emacs) --batch -q -l package --eval \
