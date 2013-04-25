@@ -34,3 +34,9 @@ no longer prompt you with `Array`!
   ```lisp
   (add-hook 'sclang-mode-hook 'sclang-ac-mode)
   ```
+
+## TODO
+
+* Figure out how to show all members on electric-dot
+* Scrape SCDoc for class and function summaries
+* Figure out why methods defined in superclasses don't show consistently.
