@@ -4,7 +4,7 @@
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
 ;; Version: 0.2.2
-;; Package-Requires: ((auto-complete "1.4.0") (s "1.3.1") (dash "1.2.0") (cl-lib "0.2") (emacs "24.1"))
+;; Package-Requires: ((auto-complete "1.4.0")(popup "0.5.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
 ;; This file is not part of GNU Emacs.
@@ -26,7 +26,7 @@
 
 ;; Provides `sclang-ac-mode', a minor-mode that overrides the default
 ;; auto-complete behavior for sclang-mode.  Communicates with the SuperCollider
-;; runtime to provide more intelligent auto-complete candidates.
+;; runtime to provide more intelligent auto-completion.
 
 ;;; Installation:
 
@@ -38,14 +38,38 @@
 
 ;;; Code:
 
-(require 'cl-lib)
 (require 'dash)
 (require 's)
+(require 'popup)
 (require 'auto-complete)
 (autoload 'sclang-eval-string "sclang-help")
 (autoload 'thing-at-point-looking-at "thingatpt")
 
-(cl-defun scd--blocking-eval-string (expr &optional (timeout-ms 100))
+(defgroup sclang-ac nil
+  "Improved auto-complete for SuperCollider."
+  :group 'languages)
+
+;;; Customizable vars.
+
+(defface sclang-ac-defined-member-face
+  '((t (:inherit ac-candidate-face
+                 :background "sandybrown" :foreground "black")))
+  "Used for unselected members defined by the current class in the completion menu."
+  :group 'sclang-ac)
+
+(defface sclang-ac-defined-member-selection-face
+  '((t (:inherit ac-selection-face :background "coral3")))
+  "Used for selected members defined by the current class in the completion menu."
+  :group 'sclang-ac)
+
+(defcustom sclang-ac-popup-help-delay
+  (if (boundp 'ac-quick-help-delay) ac-quick-help-delay 0.25)
+  "The number of seconds to wait before displaying help for a completion item."
+  :group 'sclang-ac)
+
+;;; ----------------------------------------------------------------------------
+
+(defun* scd--blocking-eval-string (expr &optional (timeout-ms 100))
   "Ask SuperCollider to evaluate the given string EXPR. Wait a maximum TIMEOUT-MS."
   (unless (s-blank? expr)
     (let ((result nil)
@@ -68,12 +92,13 @@
 
 (defun scd--deserialize (str)
   "Parse the SuperCollider response STR."
-  (->> str
-    ;; Parse SuperCollider arrays to lists.
-    (s-replace "," "")
-    (s-replace "[" "(")
-    (s-replace "]" ")")
-    (read)))
+  (when str
+    (->> str
+      ;; Parse SuperCollider arrays to lists.
+      (s-replace "," "")
+      (s-replace "[" "(")
+      (s-replace "]" ")")
+      (read))))
 
 (defun scd--methods (class)
   "Return a list of methods implemented by CLASS."
@@ -127,22 +152,26 @@
     (s-chop-suffix ".")))
 
 ;;; ----------------------------------------------------------------------------
-;;; Auto-completion
+;;; Completion functions
+;;
+;; Auto-complete works fine for top-level references to classes. Completion for
+;; object members requires a bespoke menu that can be triggered by pressing `.'
+
+;;; Class completion
 
 (defvar scd--known-classes nil
   "A cache of all class names known to SuperCollider.")
-
-(defvar scd--ac-method-cache nil
-  "Cache containing methods for auto-complete.")
 
 (defun scd--class-of-thing-at-point ()
   "Test whether the thing at point is a class name.
 Return the name of the class if looking at a class name.
 Otherwise evaluate the expression to determine its class."
   (let ((expr (scd--expression-to-point)))
-    (if (-contains? scd--known-classes expr)
-        expr
-      (scd--class-of expr))))
+    (scd--class-of expr)
+    ;; (if (-contains? scd--known-classes expr)
+    ;;     expr
+    ;;   (scd--class-of expr))
+    ))
 
 (defmacro when-sclang-class (varname &rest body)
   "Bind the sclang expression at point to VARNAME and execute BODY forms."
@@ -150,25 +179,7 @@ Otherwise evaluate the expression to determine its class."
   `(-when-let (,varname (scd--class-of-thing-at-point))
      ,@body))
 
-(defun scd--ac-init-methods (class)
-  "Get the list of methods for CLASS and process the list for auto-complete."
-  (--map (destructuring-bind (name arglist owner) it
-           ;; Turn method name symbol to string.
-           (list (symbol-name (eval name))
-                 (eval arglist)
-                 (symbol-name owner)))
-         (scd--methods class)))
-
-(defun scd--ac-method-documentation (method)
-  "Format a help popup for METHOD."
-  (destructuring-bind (name arglist owner)
-      (assoc method scd--ac-method-cache)
-    ;; Build docstring.
-    (s-concat
-     (format "%s.%s\n\n" owner name)
-     (unless (s-blank? arglist) arglist))))
-
-(defun scd--ac-class-documentation (class)
+(defun scd--class-documentation (class)
   "Format a help popup for CLASS."
   (let* ((super (s-join " < " (scd--superclasses class)))
          ;; Take a set number of subclasses before ellispsizing.
@@ -195,21 +206,6 @@ Otherwise evaluate the expression to determine its class."
     (forward-word -1)
     (thing-at-point-looking-at "[.]")))
 
-;;; Method completion source.
-(ac-define-source sclang-methods
-  '((init       . (setq scd--ac-method-cache (when-sclang-class k
-                                              (scd--ac-init-methods k))))
-    (candidates . (-map 'car scd--ac-method-cache))
-    (document   . scd--ac-method-documentation)
-    (symbol     . "f")))
-
-;;; Instance variable completion source.
-(ac-define-source sclang-ivars
-  '((candidates . (when-sclang-class k
-                    (scd--instance-vars k)))
-    (symbol     . "v")))
-
-;;; Class completion source.
 (ac-define-source sclang-classes
   '((init       . (setq scd--known-classes (scd--all-classes)))
     (candidates . (unless (scd--looking-at-member-access?)
@@ -217,19 +213,74 @@ Otherwise evaluate the expression to determine its class."
     (document   . scd--ac-class-documentation)
     (symbol     . "s")))
 
-;;; ----------------------------------------------------------------------------
+;;; Member completion
 
+(defun* scd--method-item (class (name arglist owner))
+  "Return a popup item for the corresponding sclang method item."
+  (let ((name (symbol-name (eval name)))
+        (arglist (eval arglist))
+        (owner (symbol-name owner)))
+    (popup-make-item
+     name
+     :symbol name
+     :summary "f"
+
+     :document
+     (s-concat
+      (format "%s.%s\n\n" owner name)
+      (unless (s-blank? arglist) arglist))
+
+     ;; Use special faces var methods defined by the current class.
+     :face
+     (when (equal class owner)
+         'sclang-ac-defined-member-face
+       'popup-item-face)
+
+     :selection-face
+     (if(equal class owner)
+         'sclang-ac-defined-member-selection-face
+       'popup-selection-face))))
+
+(defun scd--method-popup-items (class)
+  "Return a list of method popup-items for the given CLASS."
+  (--map (scd--method-item class it)
+         (scd--methods class)))
+
+(defun scd--ivar-popup-items (class)
+  "Return a list of variable popup-items for the given CLASS."
+  (--map (popup-make-item
+          it
+          :symbol it
+          :summary "v")
+         (scd--instance-vars class)))
+
+(defun scd--sort-popup-items (items)
+  "Sort ITEMS alphabetically."
+  (sort items (lambda (L R)
+                (string< (popup-item-symbol L)
+                         (popup-item-symbol R)))))
+
+;;;###autoload
 (defun sclang-electric-dot ()
   "Open the auto-complete menu with candidates for the preceding sclang form."
   (interactive)
   (insert-string ".")
-  (auto-complete (list ac-source-sclang-methods
-                       ac-source-sclang-ivars)))
+  (when-sclang-class k
+    (insert-string
+     (popup-menu*
+      (scd--sort-popup-items (-concat (scd--method-popup-items k)
+                                      (scd--ivar-popup-items k)))
+      :help-delay sclang-ac-popup-help-delay
+      :scroll-bar t))))
+
+;;; ----------------------------------------------------------------------------
 
 (defvar sclang-ac-mode-map
   (let ((map (make-keymap)))
     (define-key map (kbd ".") 'sclang-electric-dot)
-    map))
+    map)
+  "Keymap for sclang-ac-mode.
+\\{sclang-ac-mode-map}")
 
 ;;;###autoload
 (define-minor-mode sclang-ac-mode
