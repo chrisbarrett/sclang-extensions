@@ -230,11 +230,10 @@ methods are actually instance methods of the meta-class."
 
 (defun slc:selected-method-doc (_)
   "Show documentation for the currently selected method in the `ac-menu'."
-  (destructuring-bind (&whole it name arglist owner)
+  (destructuring-bind (name arglist owner)
       ;; The selected candidate is the method name.
       (assoc (ac-selected-candidate) slc:last-methods)
 
-    (message "--> Doc: %s" it)
     (s-concat
      ;; Display name.
      (format "%s.%s\n\n" owner name)
