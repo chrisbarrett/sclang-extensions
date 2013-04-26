@@ -232,14 +232,16 @@ methods are actually instance methods of the meta-class."
 (defvar slc:last-class nil
   "The class to use for completion candidates.")
 
-(defun slc:method-args-bullets (class method-name)
+(defconst slc:bullet "•")
+
+(defun slc:method-bullets (method-arg-info)
   "Build a bulleted list describing a method's arguments."
-  (-when-let* ((bullet "•")
-               (args (slc:method-arg-info class method-name)))
+  (when method-arg-info
     (format "\n\narguments:%s"
-            (->> (--map (format "%s:\t %s" (car it) (cadr it)) args)
-              (s-join (format "\n\n%s " bullet))
-              (s-prepend (format "\n%s " bullet))))))
+            (->> method-arg-info
+              (--map (format "%s: \t%s" (car it) (cadr it)))
+              (s-join (format "\n\n%s " slc:bullet))
+              (s-prepend (format "\n%s " slc:bullet))))))
 
 (defun* slc:selected-method-doc ((arglist owner)
                                  &optional (name (ac-selected-candidate)))
@@ -250,7 +252,7 @@ methods are actually instance methods of the meta-class."
    ;; Display arglist.
    (unless (s-blank? arglist) arglist)
    ;; Display arglist details.
-   (slc:method-args-bullets owner name)))
+   (slc:method-bullets (slc:method-arg-info owner name))))
 
 (defun* slc:method-item ((name arglist owner))
   "Return a popup item for the corresponding sclang method item."
@@ -260,13 +262,12 @@ methods are actually instance methods of the meta-class."
 
 (defun* slc:class-doc-subclasses (class &optional (maxlen 5))
   "Return a list of subclasses. It will be ellipsized if longer than MAXLEN"
-  (let* ((bullet "\n• ")
-         (subclasses (slc:subclasses class))
+  (let* ((subclasses (slc:subclasses class))
          ;; Show MAXLEN subclasses before ellipsizing.
          (sub-str (->> subclasses
                     (-take maxlen)
-                    (s-join bullet)
-                    (s-prepend bullet)))
+                    (s-join slc:bullet)
+                    (s-prepend slc:bullet)))
          (sub-str (if (< maxlen (length subclasses))
                       (s-append "\n  …" sub-str)
                     sub-str)))
