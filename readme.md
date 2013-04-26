@@ -40,5 +40,4 @@ no longer prompt you with `Array`!
 ## TODO
 
 * Figure out how to show all members on electric-dot
-* Scrape SCDoc for class and function summaries
-* Figure out why methods defined in superclasses don't show consistently.
+* Figure out why some instance members don't show consistently.
