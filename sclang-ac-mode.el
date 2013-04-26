@@ -129,6 +129,14 @@ Empty responses are returned as nil."
     (slc:request "%s.methods.collect {|m| [m.name, m.argList, m.ownerClass] }"
                  class)))
 
+(defun slc:all-methods (class)
+  "Return a list of methods implemented by CLASS and its superclasses."
+  (unless (s-blank? class)
+    (->> (slc:superclasses class)
+      (--mapcat
+       (slc:request "%s.methods.collect {|m| [m.name, m.argList, m.ownerClass] }" it))
+      (-uniq))))
+
 (defun slc:instance-vars (class)
   "Return a list of the instance variables of CLASS."
   (unless (s-blank? class)
@@ -279,6 +287,24 @@ methods are actually instance methods of the meta-class."
      ;; List subclasses.
      (slc:class-doc-subclasses class))))
 
+(defun slc:class-defines? (class name)
+  "Return a cons of (CLASS . NAME) if CLASS defines a method or var NAME."
+  (when (-> (-concat (slc:instance-vars class) (slc:methods class))
+          (-contains? name))
+    (cons class name)))
+
+(defun slc:find-declaring-class (class name)
+  "Walk the class hierarchy from CLASS, searching for which class defines NAME."
+  (->> (cons class (slc:superclasses class))
+    (reverse)
+    (--first (slc:class-defines? it name))))
+
+(defun* slc:selected-var-doc
+    (var-name &optional (class slc:last-class))
+  "Get the documentation for VAR-NAME."
+  (-when-let (k (slc:find-declaring-class class var-name))
+    (format "%s.%s" k var-name)))
+
 (ac-define-source sclang-classes
   '((candidates . (slc:logged
                     (unless (slc:looking-at-member-access?)
@@ -308,6 +334,7 @@ methods are actually instance methods of the meta-class."
   '((candidates . (slc:logged
                     (slc:instance-vars slc:last-class)))
     (prefix     . ac-prefix-default)
+    (document   . slc:selected-var-doc)
     (symbol     . "v")
     (limit      . nil)
     (requires   . -1)))
