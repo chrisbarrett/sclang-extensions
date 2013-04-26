@@ -233,6 +233,29 @@ methods are actually instance methods of the meta-class."
   "The class to use for completion candidates.")
 
 (defconst slc:bullet "•")
+(defconst slc:ellipsis "…")
+
+(defun* slc:ellipsize (str &optional (maxlen 30))
+  "Ellipsize string STR if it is longer than MAXLEN."
+  (cond
+
+   ;; Return unchanged if less than maxlen.
+   ((<= (length str) maxlen) str)
+
+   ;; Abbreviate lists.
+   ((ignore-errors (listp (read str)))
+    (->> (substring str 1 (- maxlen 3))
+      (s-split-words)
+      (butlast)
+      (s-join " ")
+      (s-prepend "[")
+      (s-append (format " %s]" slc:ellipsis))))
+
+   ;; Trim and ellipsize.
+   (t
+    (s-append slc:ellipsis (substring str 0 (1- maxlen))))))
+
+(slc:ellipsize "(the quick brown fox jumps over the lazy dog ho ho ho ho ho ho)")
 
 (defun slc:method-bullets (method-arg-info)
   "Build a bulleted list describing a method's arguments."
@@ -303,8 +326,15 @@ methods are actually instance methods of the meta-class."
 (defun* slc:selected-var-doc
     (var-name &optional (class slc:last-class))
   "Get the documentation for VAR-NAME."
-  (-when-let (k (slc:find-declaring-class class var-name))
-    (format "%s.%s" k var-name)))
+  (let ((qual-sym (format "%s.%s" (slc:find-declaring-class class var-name) var-name)))
+    (s-concat
+     ;; CLASS.NAME
+     qual-sym
+     ;; Show value if possible.
+     (->> (slc:request "%s.%s" (slc:ensure-non-meta-class class) var-name)
+       (prin1-to-string)
+       (slc:ellipsize)
+       (concat "\n\nvalue: ")))))
 
 (ac-define-source sclang-classes
   '((candidates . (slc:logged
