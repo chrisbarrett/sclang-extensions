@@ -80,7 +80,7 @@
          (message "[sclang-ac]: %s" ,result))
        ,result)))
 
-(defun* slc:blocking-eval-string (expr &optional (timeout-ms 100))
+(defun* slc:blocking-eval-string (expr &optional (timeout-ms 50))
   "Ask SuperCollider to evaluate the given string EXPR. Wait a maximum TIMEOUT-MS."
   (unless (s-blank? expr)
     (let ((result nil)
