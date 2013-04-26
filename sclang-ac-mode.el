@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 0.2.2
+;; Version: 0.2.3
 ;; Package-Requires: ((auto-complete "1.4.0")(popup "0.5.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
@@ -116,54 +116,86 @@
       (s-replace "]" ")")
       (read))))
 
+(defun slc:request (format-string &rest args)
+  "Define a blocking request to SuperCollider.
+Empty responses are returned as nil."
+  (let ((response
+         (slc:deserialize
+          (slc:blocking-eval-string
+           (apply 'format format-string args)))))
+    (if (and (stringp response)
+             (s-blank? response))
+        nil
+      response)))
+
 (defun slc:methods (class)
   "Return a list of methods implemented by CLASS."
   (unless (s-blank? class)
-    (->> (concat class ".methods.collect {|m| [m.name, m.argList, m.ownerClass] } ")
-      (slc:blocking-eval-string)
-      (slc:deserialize))))
+    (slc:request "%s.methods.collect {|m| [m.name, m.argList, m.ownerClass] }"
+                 class)))
 
 (defun slc:instance-vars (class)
   "Return a list of the instance variables of CLASS."
   (unless (s-blank? class)
-    (->> (concat class ".instVarNames.collect(_.asString)")
-      (slc:blocking-eval-string)
-      (slc:deserialize))))
+    (slc:request "%s.instVarNames.collect(_.asString)" class)))
 
 (defun slc:class-vars (class)
   "Return a list of the class variables of CLASS."
   (unless (s-blank? class)
-    (->> (concat class ".classVarNames.collect(_.asString)")
-      (slc:blocking-eval-string)
-      (slc:deserialize))))
+    (slc:request "%s.classVarNames.collect(_.asString)" class)))
 
 (defun slc:superclasses (class)
   "Return a list of superclasses for CLASS."
   (unless (s-blank? class)
-    (->> (concat class ".superclasses")
-      (slc:blocking-eval-string)
-      (slc:deserialize)
-      (-map 'symbol-name))))
+    (-map 'symbol-name (slc:request "%s.superclasses" class))))
 
 (defun slc:subclasses (class)
   "Return the direct subclasses of CLASS."
   (unless (s-blank? class)
-    (->> (concat class ".subclasses")
-      (slc:blocking-eval-string)
-      (slc:deserialize)
-      (-map 'symbol-name))))
+    (-map 'symbol-name (slc:request "%s.subclasses" class))))
 
 (defun slc:class-summary (class)
   "Return the summary for the given class."
   (unless (s-blank? class)
-    (->>  (format "SCDoc.documents[\"Classes/%s\"].summary" class)
-      (slc:blocking-eval-string)
-      (slc:deserialize))))
+    (slc:request "SCDoc.documents[\"Classes/%s\"].summary" class)))
 
 (defun slc:class-of (expr)
   "Evaluate EXPR and return the class of the result."
   (unless (s-blank? expr)
     (slc:blocking-eval-string (format "(%s).class" expr))))
+
+(defun slc:ensure-qualified-method (method-name)
+  "Ensure method-name begins with '*', '-' or '.' as expected by SuperCollider."
+  (if (s-matches? (rx bol (any "." "*" "-")) method-name)
+      method-name
+    (s-prepend "*" method-name)))
+
+(defun slc:ensure-non-meta-class (class)
+  "Make sure that the given CLASS name is not prefixed by Meta_.
+This is necessary when looking up documentation, because class
+methods are actually instance methods of the meta-class."
+  (s-chop-prefix "Meta_" class))
+
+(defun slc:method-description (class method-name)
+  "Describe the given method. "
+  (let ((k (slc:ensure-non-meta-class class))
+        (m (slc:ensure-qualified-method method-name)))
+    (or (slc:request
+         (concat "SCDoc.getMethodDoc(\"%s\", \"%s\")"
+                 ".findChild(\\METHODBODY)"
+                 ".findChild(\\PROSE).text") k m)
+        (format "No description. See documentation for %s." k))))
+
+(defun slc:method-arg-info (class method-name)
+  "Get the name and description of each argument for a method. "
+  (slc:request
+   (concat "SCDoc.getMethodDoc(\"%s\", \"%s\")"
+           ".findChild(\\METHODBODY)"
+           ".findChild(\\ARGUMENTS).children.collect{|x| "
+           "[x.text, x.findChild(\\PROSE).findChild(\\TEXT).text] "
+           "} ")
+   (slc:ensure-non-meta-class class)
+   (slc:ensure-qualified-method method-name)))
 
 (defun slc:all-classes ()
   "Return the list of classes known to SuperCollider."
@@ -189,59 +221,67 @@
 (defvar slc:last-class nil
   "The class to use for completion candidates.")
 
-(defun* slc:method-item (class (name arglist owner))
+(defvar slc:last-methods nil
+  "The last list of methods for completion candidates")
+
+(defun slc:method-args-bullets (class method-name)
+  "Build a bulleted list describing a method's arguments."
+  (-when-let* ((bullet "•")
+               (args (slc:method-arg-info class method-name)))
+    (format "\n\narguments:%s"
+            (->> (--map (format "%s:\t %s" (car it) (cadr it)) args)
+              (s-join (format "\n\n%s " bullet))
+              (s-prepend (format "\n%s " bullet))))))
+
+(defun slc:selected-method-doc (_)
+  "Show documentation for the currently selected method in the `ac-menu'."
+  (destructuring-bind (&whole it name arglist owner)
+      ;; The selected candidate is the method name.
+      (assoc (ac-selected-candidate) slc:last-methods)
+
+    (message "--> Doc: %s" it)
+    (s-concat
+     ;; Display name.
+     (format "%s.%s\n\n" owner name)
+     ;; Display arglist.
+     (unless (s-blank? arglist) arglist)
+     ;; Display arglist details.
+     (slc:method-args-bullets owner name))))
+
+(defun* slc:method-item ((name arglist owner))
   "Return a popup item for the corresponding sclang method item."
-  (let ((name (symbol-name (eval name)))
-        (arglist (eval arglist))
-        (owner (symbol-name owner)))
-    (popup-make-item
-     name
-     :symbol "f"
+  (list (symbol-name (eval name))
+        (eval arglist)
+        (slc:ensure-non-meta-class (symbol-name owner))))
 
-     :document
-     (s-concat
-      (format "%s.%s\n\n" owner name)
-      (unless (s-blank? arglist) arglist))
-
-     ;; Use special faces var methods defined by the current class.
-     :face
-     (when (equal class owner)
-         'sclang-ac-defined-member-face
-       'popup-item-face)
-
-     :selection-face
-     (if(equal class owner)
-         'sclang-ac-defined-member-selection-face
-       'popup-selection-face))))
+(defun* slc:class-doc-subclasses (class &optional (maxlen 5))
+  "Return a list of subclasses. It will be ellipsized if longer than MAXLEN"
+  (let* ((bullet "\n• ")
+         (subclasses (slc:subclasses class))
+         ;; Show MAXLEN subclasses before ellipsizing.
+         (sub-str (->> subclasses
+                    (-take maxlen)
+                    (s-join bullet)
+                    (s-prepend bullet)))
+         (sub-str (if (< maxlen (length subclasses))
+                      (s-append "\n  …" sub-str)
+                    sub-str)))
+    (when subclasses
+      (concat "\n\nsubclasses:" sub-str))))
 
 (defun slc:class-documentation (class)
   "Format a help popup for CLASS."
-  (let* ((super (s-join " < " (slc:superclasses class)))
-         ;; Take a set number of subclasses before ellispsizing.
-         (max-subs 5)
-         (bullet "\n• ")
-         (subclasses (slc:subclasses class))
-         (sub-str    (->> subclasses
-                       (-take max-subs)
-                       (s-join bullet )
-                       (s-prepend bullet))))
+  (let ((super (s-join " < " (slc:superclasses class))))
     (s-concat
      class
-
-     ;; Show the class summary.
+     ;; Summarize class.
      (-when-let (summary (slc:class-summary class))
        (concat ":\n" summary))
-
-     ;; Show inheritance chain..
+     ;; Display inheritance chain.
      (unless (s-blank? super)
        (format "\n\ninheritance chain:\n%s < %s" class super))
-
-     ;; Show list of subclasses. It will be ellipsized if longer than MAX-SUBS.
-     (when subclasses
-       (format "\n\nsubclasses:%s"
-               (if (< max-subs (length subclasses))
-                   (s-append "\n  …" sub-str)
-                 sub-str))))))
+     ;; List subclasses.
+     (slc:class-doc-subclasses class))))
 
 (ac-define-source sclang-classes
   '((candidates . (slc:logged
@@ -254,16 +294,22 @@
 (ac-define-source sclang-toplevel-functions
   '((candidates . (slc:logged
                     (unless (slc:looking-at-member-access?)
-                      (--map (slc:method-item slc:last-class it)
-                             (slc:methods "AbstractFunction")))))
+                      (let ((xs (-map 'slc:method-item
+                                      (slc:methods "AbstractFunction"))))
+                        (setq slc:last-methods xs)
+                        xs))))
+    (document   . slc:selected-method-doc)
     (symbol     . "f")
     (limit      . nil)))
 
 (ac-define-source sclang-methods
   '((candidates . (slc:logged
-                    (--map (slc:method-item slc:last-class it)
-                           (slc:methods slc:last-class))))
+                    (let ((xs (-map 'slc:method-item (slc:methods slc:last-class))))
+                      (setq slc:last-methods xs)
+                      xs)))
+    (document   . slc:selected-method-doc)
     (prefix     . ac-prefix-default)
+    (symbol     . "f")
     (limit      . nil)
     (requires   . -1)))
 
