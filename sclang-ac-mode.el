@@ -64,24 +64,6 @@
   :group 'languages
   :prefix "sclang-ac")
 
-;;; Customizable vars.
-
-(defface sclang-ac-defined-member-face
-  '((t (:inherit ac-candidate-face
-                 :background "sandybrown" :foreground "black")))
-  "Used for unselected members defined by the current class in the completion menu."
-  :group 'sclang-ac)
-
-(defface sclang-ac-defined-member-selection-face
-  '((t (:inherit ac-selection-face :background "coral3")))
-  "Used for selected members defined by the current class in the completion menu."
-  :group 'sclang-ac)
-
-(defcustom sclang-ac-popup-help-delay
-  (if (boundp 'ac-quick-help-delay) ac-quick-help-delay 0.25)
-  "The number of seconds to wait before displaying help for a completion item."
-  :group 'sclang-ac)
-
 (defcustom sclang-ac-verbose
   nil
   "If non-nil, print extra debugging info to the messages buffer."
