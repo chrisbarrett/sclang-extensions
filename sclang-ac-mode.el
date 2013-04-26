@@ -378,12 +378,64 @@ Note that most methods do not have a description."
 
 ;;; ----------------------------------------------------------------------------
 
+(defun slc:open-brace-pos ()
+  "Find the position of the first preceding opening brace."
+  (save-excursion
+    (search-backward-regexp (rx (any "(" "[" "{"))
+                            (line-beginning-position)
+                            t)))
+
+(defun slc:between? (n start end)
+  "Non-nil if N is between START and END, inclusively."
+  (and (>= n start) (<= n end)))
+
+(defun* slc:expression-start-pos (&optional (pt (point)))
+  "Return the start of the current sclang expression."
+  (save-excursion
+    (goto-char pt)
+    (let* ((bol (line-beginning-position))
+           (semicolon (save-excursion (search-backward ";" bol t)))
+           (open-brace (slc:open-brace-pos))
+
+           ;; Find the extents of the nearest preceding braced expression.
+           (brace-end (save-excursion
+                        (search-backward-regexp (rx (any ")" "]" "}")) bol t)))
+           (brace-start (ignore-errors
+                          (save-excursion
+                            (goto-char brace-end)
+                            (backward-sexp)
+                            (point))))
+
+           ;; Ignore semicolons that are inside braced expressions.
+
+           (semicolon-at-this-nesting?
+            (ignore-errors
+              (and (> semicolon open-brace)
+                   (not (slc:between? semicolon brace-start brace-end))))))
+      (or
+       ;; Skip backwards over braced expressions and continue.
+       (when (thing-at-point-looking-at (rx (any "}" "]" ")" "\"") (* space)))
+         (save-excursion
+           (backward-sexp)
+           (slc:expression-start-pos (point))))
+
+       ;; Check for semicolon at this level of nesting.
+       (when (and semicolon semicolon-at-this-nesting?)
+         (1+ semicolon))
+
+       ;; If we're inside a braced expression, return the start position.
+       (when open-brace
+         (1+ open-brace))
+
+       ;; Otherwise, fall back to using the whole line.
+       (line-beginning-position)))))
+
 (defun slc:class-of-thing-at-point ()
   "Return the class of the sclang expression at point."
   (slc:logged
-    (->> (buffer-substring-no-properties (line-beginning-position) (point))
-      ;; Remove trailing dot-accessor.
+    (->> (buffer-substring-no-properties (slc:expression-start-pos) (point))
       (s-trim)
+      ;; Remove trailing dot-accessor.
       (s-chop-suffix ".")
       (slc:class-of))))
 
@@ -401,9 +453,16 @@ Note that most methods do not have a description."
   (let ((ac-expand-on-auto-complete t))
     (auto-complete '(ac-source-sclang-ivars ac-source-sclang-methods))))
 
+;;;###autoload
+(defun sclang-expression-start ()
+  "Move to the start of the sclang expression before point."
+  (interactive)
+  (goto-char (slc:expression-start-pos)))
+
 (defvar sclang-ac-mode-map
   (let ((map (make-keymap)))
     (define-key map (kbd ".") 'sclang-electric-dot)
+    (define-key map (kbd "M-a") 'sclang-expression-start)
     map)
   "Keymap for sclang-ac-mode.
 \\{sclang-ac-mode-map}")
