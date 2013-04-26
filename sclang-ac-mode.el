@@ -159,12 +159,6 @@ Empty responses are returned as nil."
   (unless (s-blank? expr)
     (slc:blocking-eval-string (format "(%s).class" expr))))
 
-(defun slc:ensure-qualified-method (method-name)
-  "Ensure method-name begins with '*', '-' or '.' as expected by SuperCollider."
-  (if (s-matches? (rx bol (any "." "*" "-")) method-name)
-      method-name
-    (s-prepend "*" method-name)))
-
 (defun slc:ensure-non-meta-class (class)
   "Make sure that the given CLASS name is not prefixed by Meta_.
 This is necessary when looking up documentation, because class
@@ -173,24 +167,38 @@ methods are actually instance methods of the meta-class."
 
 (defun slc:method-description (class method-name)
   "Describe the given method. "
-  (let ((k (slc:ensure-non-meta-class class))
-        (m (slc:ensure-qualified-method method-name)))
-    (or (slc:request
-         (concat "SCDoc.getMethodDoc(\"%s\", \"%s\")"
-                 ".findChild(\\METHODBODY)"
-                 ".findChild(\\PROSE).text") k m)
-        (format "No description. See documentation for %s." k))))
+  (let ((k (slc:ensure-non-meta-class class)))
+    (or
+     ;; Try class method.
+     (slc:request
+      (concat "SCDoc.getMethodDoc(\"%s\", \"*%s\")"
+              ".findChild(\\METHODBODY)"
+              ".findChild(\\PROSE).text") k method-name)
+     ;; Try instance method.
+     (slc:request
+      (concat "SCDoc.getMethodDoc(\"%s\", \"-%s\")"
+              ".findChild(\\METHODBODY)"
+              ".findChild(\\PROSE).text") k method-name)
+     (format "No description. See documentation for %s." k))))
 
 (defun slc:method-arg-info (class method-name)
   "Get the name and description of each argument for a method. "
-  (slc:request
-   (concat "SCDoc.getMethodDoc(\"%s\", \"%s\")"
-           ".findChild(\\METHODBODY)"
-           ".findChild(\\ARGUMENTS).children.collect{|x| "
-           "[x.text, x.findChild(\\PROSE).findChild(\\TEXT).text] "
-           "} ")
-   (slc:ensure-non-meta-class class)
-   (slc:ensure-qualified-method method-name)))
+  (let ((k (slc:ensure-non-meta-class class)))
+    (or
+     ;; Try class method.
+     (slc:request
+      (concat "SCDoc.getMethodDoc(\"%s\", \"*%s\")"
+              ".findChild(\\METHODBODY)"
+              ".findChild(\\ARGUMENTS).children.collect{|x| "
+              "[x.text, x.findChild(\\PROSE).findChild(\\TEXT).text] "
+              "} ") k method-name)
+     ;; Try instance method.
+     (slc:request
+      (concat "SCDoc.getMethodDoc(\"%s\", \"-%s\")"
+              ".findChild(\\METHODBODY)"
+              ".findChild(\\ARGUMENTS).children.collect{|x| "
+              "[x.text, x.findChild(\\PROSE).findChild(\\TEXT).text] " "} ")
+      k method-name))))
 
 (defun slc:all-classes ()
   "Return the list of classes known to SuperCollider."
@@ -208,16 +216,13 @@ methods are actually instance methods of the meta-class."
 ;;; ----------------------------------------------------------------------------
 ;;; Completion sources.
 ;;
-;; Completion sources that require a reference to an object (i.e. methods,
+;; Completion sources that require a reference to a class (i.e. methods,
 ;; instance vars) use the `slc:last-class' variable. This ensures that we know
 ;; which class to operate on regardless of buffer insertions caused by the
 ;; completion.
 
 (defvar slc:last-class nil
   "The class to use for completion candidates.")
-
-(defvar slc:last-methods nil
-  "The last list of methods for completion candidates")
 
 (defun slc:method-args-bullets (class method-name)
   "Build a bulleted list describing a method's arguments."
@@ -228,19 +233,16 @@ methods are actually instance methods of the meta-class."
               (s-join (format "\n\n%s " bullet))
               (s-prepend (format "\n%s " bullet))))))
 
-(defun slc:selected-method-doc (_)
+(defun* slc:selected-method-doc ((arglist owner)
+                                 &optional (name (ac-selected-candidate)))
   "Show documentation for the currently selected method in the `ac-menu'."
-  (destructuring-bind (name arglist owner)
-      ;; The selected candidate is the method name.
-      (assoc (ac-selected-candidate) slc:last-methods)
-
-    (s-concat
-     ;; Display name.
-     (format "%s.%s\n\n" owner name)
-     ;; Display arglist.
-     (unless (s-blank? arglist) arglist)
-     ;; Display arglist details.
-     (slc:method-args-bullets owner name))))
+  (s-concat
+   ;; Display name.
+   (format "%s.%s\n\n" owner name)
+   ;; Display arglist.
+   (unless (s-blank? arglist) arglist)
+   ;; Display arglist details.
+   (slc:method-args-bullets owner name)))
 
 (defun* slc:method-item ((name arglist owner))
   "Return a popup item for the corresponding sclang method item."
@@ -288,19 +290,14 @@ methods are actually instance methods of the meta-class."
 (ac-define-source sclang-toplevel-functions
   '((candidates . (slc:logged
                     (unless (slc:looking-at-member-access?)
-                      (let ((xs (-map 'slc:method-item
-                                      (slc:methods "AbstractFunction"))))
-                        (setq slc:last-methods xs)
-                        xs))))
+                      (-map 'slc:method-item (slc:methods "AbstractFunction")))))
     (document   . slc:selected-method-doc)
     (symbol     . "f")
     (limit      . nil)))
 
 (ac-define-source sclang-methods
   '((candidates . (slc:logged
-                    (let ((xs (-map 'slc:method-item (slc:methods slc:last-class))))
-                      (setq slc:last-methods xs)
-                      xs)))
+                    (-map 'slc:method-item (slc:methods slc:last-class))))
     (document   . slc:selected-method-doc)
     (prefix     . ac-prefix-default)
     (symbol     . "f")
