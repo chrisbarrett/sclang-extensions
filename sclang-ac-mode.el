@@ -172,22 +172,6 @@ This is necessary when looking up documentation, because class
 methods are actually instance methods of the meta-class."
   (s-chop-prefix "Meta_" class))
 
-(defun slc:method-description (class method-name)
-  "Find the description for the given method.
-Note that most methods do not have a description."
-  (let ((k (slc:ensure-non-meta-class class)))
-    (or
-     ;; Try class method.
-     (slc:request
-      (concat "SCDoc.getMethodDoc(\"%s\", \"*%s\")"
-              ".findChild(\\METHODBODY)"
-              ".findChild(\\PROSE).text") k method-name)
-     ;; Try instance method.
-     (slc:request
-      (concat "SCDoc.getMethodDoc(\"%s\", \"-%s\")"
-              ".findChild(\\METHODBODY)"
-              ".findChild(\\PROSE).text") k method-name))))
-
 (defun slc:method-arg-info (class method-name)
   "Get the name and description of each argument for a method. "
   (let ((k (slc:ensure-non-meta-class class)))
@@ -271,9 +255,6 @@ Note that most methods do not have a description."
   (s-concat
    ;; Display name.
    (format "%s.%s\n\n" owner name)
-   ;; Display description.
-   (-when-let (desc (slc:method-description owner name))
-     (concat desc "\n\n"))
    ;; Display arglist.
    (unless (s-blank? arglist) arglist)
    ;; Display arglist details.
