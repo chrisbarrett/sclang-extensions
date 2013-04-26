@@ -23,11 +23,7 @@ no longer prompt you with `Array`!
 
 ## Installation
 
-1. Use `M-x package-install` to install the following dependencies:
-
-  * s
-  * dash
-  * auto-complete
+1. Grab the latest version of the [SuperCollider Emacs bindings](https://github.com/supercollider/supercollider/tree/master/editors/scel).
 
 2. Use `M-x package-install-file` to install sclang-ac-mode.el
 

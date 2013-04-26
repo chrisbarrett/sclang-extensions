@@ -30,7 +30,8 @@
 
 ;;; Installation:
 
-;; 1. Install the package dependencies, listed above.
+;; 1. Make sure you've grabbed the latest copy of the supercollider emacs mode
+;;    off github.
 ;;
 ;; 2. Install this package with `M-x package-install-file`
 ;;
@@ -38,6 +39,18 @@
 ;;    (add-hook 'sclang-mode-hook 'sclang-ac-mode)
 
 ;;; Code:
+
+;;; Initialize packages.
+;;; TODO: Remove if this package ever goes on MELPA.
+(eval-and-compile
+  (let ((package-archives '(("melpa" . "http://melpa.milkbox.net/packages/"))))
+    (package-initialize)
+    (unless package-archive-contents (package-refresh-contents))
+    (dolist (pkg '(auto-complete dash s))
+      (unless (package-installed-p pkg)
+        (package-install pkg)))))
+
+;;; ----------------------------------------------------------------------------
 
 (require 'dash)
 (require 's)
