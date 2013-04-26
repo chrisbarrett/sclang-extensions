@@ -132,9 +132,8 @@ Empty responses are returned as nil."
 (defun slc:all-methods (class)
   "Return a list of methods implemented by CLASS and its superclasses."
   (unless (s-blank? class)
-    (->> (slc:superclasses class)
-      (--mapcat
-       (slc:request "%s.methods.collect {|m| [m.name, m.argList, m.ownerClass] }" it))
+    (->> (cons class (slc:superclasses class))
+      (-mapcat 'slc:methods)
       (-uniq))))
 
 (defun slc:instance-vars (class)
@@ -174,7 +173,8 @@ methods are actually instance methods of the meta-class."
   (s-chop-prefix "Meta_" class))
 
 (defun slc:method-description (class method-name)
-  "Describe the given method. "
+  "Find the description for the given method.
+Note that most methods do not have a description."
   (let ((k (slc:ensure-non-meta-class class)))
     (or
      ;; Try class method.
@@ -186,8 +186,7 @@ methods are actually instance methods of the meta-class."
      (slc:request
       (concat "SCDoc.getMethodDoc(\"%s\", \"-%s\")"
               ".findChild(\\METHODBODY)"
-              ".findChild(\\PROSE).text") k method-name)
-     (format "No description. See documentation for %s." k))))
+              ".findChild(\\PROSE).text") k method-name))))
 
 (defun slc:method-arg-info (class method-name)
   "Get the name and description of each argument for a method. "
@@ -272,6 +271,9 @@ methods are actually instance methods of the meta-class."
   (s-concat
    ;; Display name.
    (format "%s.%s\n\n" owner name)
+   ;; Display description.
+   (-when-let (desc (slc:method-description owner name))
+     (concat desc "\n\n"))
    ;; Display arglist.
    (unless (s-blank? arglist) arglist)
    ;; Display arglist details.
@@ -279,9 +281,11 @@ methods are actually instance methods of the meta-class."
 
 (defun* slc:method-item ((name arglist owner))
   "Return a popup item for the corresponding sclang method item."
-  (list (symbol-name (eval name))
-        (eval arglist)
-        (slc:ensure-non-meta-class (symbol-name owner))))
+  (let ((sym (eval name)))
+    (when (symbolp sym)
+      (list (symbol-name sym)
+            (eval arglist)
+            (slc:ensure-non-meta-class (symbol-name owner))))))
 
 (defun* slc:class-doc-subclasses (class &optional (maxlen 5))
   "Return a list of subclasses. It will be ellipsized if longer than MAXLEN"
@@ -354,7 +358,9 @@ methods are actually instance methods of the meta-class."
 
 (ac-define-source sclang-methods
   '((candidates . (slc:logged
-                    (-map 'slc:method-item (slc:methods slc:last-class))))
+                    (->> (slc:all-methods slc:last-class)
+                      (-map 'slc:method-item)
+                      (-remove 'null))))
     (document   . slc:selected-method-doc)
     (prefix     . ac-prefix-default)
     (symbol     . "f")
@@ -369,6 +375,8 @@ methods are actually instance methods of the meta-class."
     (symbol     . "v")
     (limit      . nil)
     (requires   . -1)))
+
+;;; ----------------------------------------------------------------------------
 
 (defun slc:class-of-thing-at-point ()
   "Return the class of the sclang expression at point."
@@ -392,8 +400,6 @@ methods are actually instance methods of the meta-class."
 
   (let ((ac-expand-on-auto-complete t))
     (auto-complete '(ac-source-sclang-ivars ac-source-sclang-methods))))
-
-;;; ----------------------------------------------------------------------------
 
 (defvar sclang-ac-mode-map
   (let ((map (make-keymap)))
