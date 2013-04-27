@@ -27,7 +27,6 @@
 
 (require 'sclang-extensions-utils)
 (require 's)
-(autoload 'check "test-runner")
 
 ;;; Response parsing
 
@@ -102,6 +101,18 @@
 
 (move-to-expr-start "skips semicolon at different nesting level"
   " { foo; foo } |" -> "| { foo; foo } ")
+
+(move-to-expr-start "stops at open brace at same nesting level"
+  "{ foo| }" -> "{| foo }")
+
+(move-to-expr-start "bounded at open brace"
+  "{| foo }" -> "{| foo }")
+
+(move-to-expr-start "bounded at open paren"
+  "(| foo )" -> "(| foo )")
+
+(move-to-expr-start "bounded at open paren"
+  "[| foo ]" -> "[| foo ]")
 
 (move-to-expr-start "skips over braces"
   "foo { bar } |" -> "|foo { bar } ")
