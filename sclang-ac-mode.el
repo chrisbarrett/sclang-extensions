@@ -4,7 +4,7 @@
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
 ;; Version: 0.2.3
-;; Package-Requires: ((auto-complete "1.4.0")(popup "0.5.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
+;; Package-Requires: ((auto-complete "1.4.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
 ;; This file is not part of GNU Emacs.
@@ -54,7 +54,6 @@
 
 (require 'dash)
 (require 's)
-(require 'popup)
 (require 'auto-complete)
 (autoload 'sclang-eval-string "sclang-help")
 (autoload 'thing-at-point-looking-at "thingatpt")
@@ -261,7 +260,7 @@ methods are actually instance methods of the meta-class."
    (slc:method-bullets (slc:method-arg-info owner name))))
 
 (defun* slc:method-item ((name arglist owner))
-  "Return a popup item for the corresponding sclang method item."
+  "Stringify and process the elements of an sclang method item."
   (let ((sym (eval name)))
     (when (symbolp sym)
       (list (symbol-name sym)
@@ -283,7 +282,7 @@ methods are actually instance methods of the meta-class."
       (concat "\n\nsubclasses:" sub-str))))
 
 (defun slc:class-documentation (class)
-  "Format a help popup for CLASS."
+  "Create an auto-complete documentation for CLASS."
   (let ((super (s-join " < " (slc:superclasses class))))
     (s-concat
      class
