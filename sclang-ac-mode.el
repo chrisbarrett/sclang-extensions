@@ -70,15 +70,6 @@
 
 ;;; ----------------------------------------------------------------------------
 
-(defmacro scl:logged (&rest body)
-  "Like `progn', but logs the result to messages if `sclang-ac-verbose' is non-nil."
-  (declare (indent 0))
-  (let ((result (cl-gensym)))
-    `(let ((,result (progn ,@body)))
-       (when sclang-ac-verbose
-         (message "[sclang-ac]: %s" ,result))
-       ,result)))
-
 (defun* scl:blocking-eval-string (expr &optional (timeout-ms 50))
   "Ask SuperCollider to evaluate the given string EXPR. Wait a maximum TIMEOUT-MS."
   (unless (s-blank? expr)
@@ -198,10 +189,83 @@ methods are actually instance methods of the meta-class."
       (scl:deserialize)
       (-map 'symbol-name)))
 
+;;; Things at point.
+
+(defun scl:between? (n start end)
+  "Non-nil if N is between START and END, inclusively."
+  (and (>= n start) (<= n end)))
+
+(defun* scl:find-enclosing-braces-forward (&optional (pos (point)))
+  "Find the extents of braces surrounding POS, looking forwards."
+  (save-excursion
+    (-when-let (end (search-forward-regexp (rx (any "}" ")" "]")) nil t))
+      (backward-sexp)
+      (when (scl:between? pos (point) end)
+        (cons (point) end)))))
+
+(defun* scl:find-enclosing-braces-backward (&optional (pos (point)))
+  "Find the extents of braces surrounding POS, looking backward."
+  (save-excursion
+    (-when-let (start (search-backward-regexp (rx (any "{" "(" "[")) nil t))
+      (forward-sexp)
+      (when (scl:between? pos start (point))
+        (cons start (point))))))
+
+(defun* slc:surrounding-braces (&optional (pos (point)))
+  "If POS is inside a set of balanced braces return a cons, else nil.
+The car is the opening brace and the cdr is its matching closing brace. "
+  ;; Search both forward and backward to make it more likely to work for
+  ;; unbalanced expressions.
+  (let ((forward (scl:find-enclosing-braces-forward pos))
+        (back    (scl:find-enclosing-braces-backward pos)))
+    (if (and forward back)
+        ;; If we have a match, find the narrowest enclosing set of braces.
+        (cons
+         (max (car forward) (car back))
+         (min (cdr forward) (cdr back)))
+      ;; Return the match we have.
+      (or forward back))))
+
+(defun* scl:expression-start-pos (&optional (pt (point)))
+  "Return the start of the current sclang expression."
+  (save-excursion
+    (goto-char pt)
+    (let* ((bol (line-beginning-position))
+           (semicolon (save-excursion (search-backward ";" bol t)))
+           (context (slc:surrounding-braces pt)))
+      (cond
+       ;; Go to semicolons at the current level of nesting.
+       ((and semicolon (equal (slc:surrounding-braces semicolon) context))
+        (goto-char (1+ semicolon)))
+
+       ;; Go to the start of the current context.
+       (context
+        (goto-char (1+ (car context))))
+
+       ;; Skip over braced expressions in the current context.
+       ((or (thing-at-point-looking-at (rx (any "}" "]" "]" ")" "\"")))
+            (search-backward-regexp (rx (any "}" "]" "]" ")" "\"") (* nonl)) nil t))
+        (forward-char)                  ; Move to position after brace.
+        (backward-sexp)                 ; Skip over braces.
+        (forward-char -1)               ; Move to position before brace.
+        (scl:expression-start-pos))     ; Recur and continue search backward.
+
+       ;; Otherwise return the start of the line.
+       (t
+        (line-beginning-position))))))
+
+(defun scl:class-of-thing-at-point ()
+  "Return the class of the sclang expression at point."
+  (scl:logged
+    (->> (buffer-substring-no-properties (scl:expression-start-pos) (point))
+      (s-trim)
+      ;; Remove trailing dot-accessor.
+      (s-chop-suffix ".")
+      (scl:class-of))))
+
 (defun scl:looking-at-member-access? ()
   "Return point if not looking at a member access."
-  (when (s-contains? "." (thing-at-point 'line ))
-    (point)))
+  (s-contains? "." (buffer-substring (scl:expression-start-pos) (point))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Completion sources.
@@ -320,6 +384,15 @@ methods are actually instance methods of the meta-class."
        (scl:ellipsize)
        (concat "\n\nvalue: ")))))
 
+(defmacro scl:logged (&rest body)
+  "Like `progn', but logs the result to messages if `sclang-ac-verbose' is non-nil."
+  (declare (indent 0))
+  (let ((result (cl-gensym)))
+    `(let ((,result (progn ,@body)))
+       (when sclang-ac-verbose
+         (message "[sclang-ac]: %s" ,result))
+       ,result)))
+
 (ac-define-source sclang-classes
   '((candidates . (scl:logged
                     (unless (scl:looking-at-member-access?)
@@ -357,67 +430,6 @@ methods are actually instance methods of the meta-class."
     (requires   . -1)))
 
 ;;; ----------------------------------------------------------------------------
-
-(defun scl:open-brace-pos ()
-  "Find the position of the first preceding opening brace."
-  (save-excursion
-    (search-backward-regexp (rx (any "(" "[" "{"))
-                            (line-beginning-position)
-                            t)))
-
-(defun scl:between? (n start end)
-  "Non-nil if N is between START and END, inclusively."
-  (and (>= n start) (<= n end)))
-
-(defun* scl:expression-start-pos (&optional (pt (point)))
-  "Return the start of the current sclang expression."
-  (save-excursion
-    (goto-char pt)
-    (let* ((bol (line-beginning-position))
-           (semicolon (save-excursion (search-backward ";" bol t)))
-           (open-brace (scl:open-brace-pos))
-
-           ;; Find the extents of the nearest preceding braced expression.
-           (brace-end (save-excursion
-                        (search-backward-regexp (rx (any ")" "]" "}")) bol t)))
-           (brace-start (ignore-errors
-                          (save-excursion
-                            (goto-char brace-end)
-                            (backward-sexp)
-                            (point))))
-
-           ;; Ignore semicolons that are inside braced expressions.
-
-           (semicolon-at-this-nesting?
-            (ignore-errors
-              (and (> semicolon open-brace)
-                   (not (scl:between? semicolon brace-start brace-end))))))
-      (or
-       ;; Skip backwards over braced expressions and continue.
-       (when (thing-at-point-looking-at (rx (any "}" "]" ")" "\"") (* space)))
-         (save-excursion
-           (backward-sexp)
-           (scl:expression-start-pos (point))))
-
-       ;; Check for semicolon at this level of nesting.
-       (when (and semicolon semicolon-at-this-nesting?)
-         (1+ semicolon))
-
-       ;; If we're inside a braced expression, return the start position.
-       (when open-brace
-         (1+ open-brace))
-
-       ;; Otherwise, fall back to using the whole line.
-       (line-beginning-position)))))
-
-(defun scl:class-of-thing-at-point ()
-  "Return the class of the sclang expression at point."
-  (scl:logged
-    (->> (buffer-substring-no-properties (scl:expression-start-pos) (point))
-      (s-trim)
-      ;; Remove trailing dot-accessor.
-      (s-chop-suffix ".")
-      (scl:class-of))))
 
 ;;;###autoload
 (defun sclang-electric-dot ()
