@@ -25,13 +25,27 @@ documentation in the modeline.
 
 ## Installation
 
-1. Grab the latest version of the [SuperCollider Emacs mode](https://github.com/supercollider/supercollider/tree/master/editors/scel).
+1. Install [Carton](https://github.com/rejeep/carton):
 
-2. Clone this repo. Open Emacs and use `M-x package-install-file` to install
-   sclang-extensions-pkg.el
+   ```
+   curl -fsSkL https://raw.github.com/rejeep/carton/master/go | sh
+   ```
 
-3. Add the following to your init.el:
+2. Clone and install with `make`:
 
-  ```lisp
-  (add-hook 'sclang-mode-hook 'sclang-extensions-mode)
-  ```
+   ```
+   cd
+   git clone git@github.com:chrisbarrett/sclang-extensions.git
+   cd sclang-extensions
+   make
+   ```
+
+3. Configure your init.el:
+
+   ```lisp
+   (add-hook 'sclang-mode-hook 'sclang-extensions-mode)
+   ```
+
+You will need to install the SuperCollider language mode for Emacs if you do not
+already have it. Grab the latest version
+[here](https://github.com/supercollider/supercollider/tree/master/editors/scel).
