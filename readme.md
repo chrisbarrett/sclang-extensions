@@ -23,7 +23,7 @@ no longer prompt you with `Array` for example.
 Under development. Intended to provide eldoc-style class and method
 documentation in the modeline.
 
-## Installation
+# Installation
 
 1. Install [Carton](https://github.com/rejeep/carton):
 
