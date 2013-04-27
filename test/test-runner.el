@@ -3,7 +3,6 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: [yas] elisp error! Symbol's value as variable is void: insert-timestamp
 
 ;; This file is not part of GNU Emacs.
 
