@@ -56,7 +56,7 @@ already have it. Grab the latest version
 
 # Development
 
-You will need carton, make and git to build the project.
+You will need *carton*, *make* and *git* to build the project.
 
 1. Install [Carton](https://github.com/rejeep/carton):
 
