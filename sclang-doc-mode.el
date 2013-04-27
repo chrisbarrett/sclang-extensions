@@ -53,32 +53,53 @@
        ;; Description.
        ": " (scl:class-summary k)))))
 
+(defun* scl:method-desc ((name arglist owner))
+  "Return a propertized help string for the given method info."
+  (concat
+   ;; Declaring class name
+   (propertize owner 'face 'font-lock-type-face)
+   "."
+   ;; Method name
+   (propertize name 'face 'font-lock-function-name-face)
+   ;; Format the arglist. Color individual items.
+   (format " (%s)"
+           (->> (s-split-words arglist)
+             (--map (propertize it 'face 'font-lock-variable-name-face))
+             (s-join ", ")))))
+
+(defun scl:symbol-near-point ()
+  "Like `symbol-at-point', but allows whitespace to the left of POINT."
+  (save-excursion
+    (or (symbol-at-point)
+        (progn
+          (search-backward-regexp (rx (not space))
+                                  (line-beginning-position) t)
+          (symbol-at-point)))))
+
 (defun scl:method-desc-at-point ()
   "Return a propertized arglist of the method at point if available."
   (-when-let* ((class (and (scl:looking-at-member-access?)
                            (scl:class-of-thing-at-point)))
-               (method (symbol-at-point)))
-    (destructuring-bind (name arglist owner)
-        (->> (scl:all-methods class)
-          (-map 'scl:method-item)
-          (-remove 'null)
-          (assoc (symbol-name method)))
-      (concat
-       ;; Declaring class name
-       (propertize owner 'face 'font-lock-type-face)
-       "."
-       ;; Method name
-       (propertize name 'face 'font-lock-function-name-face)
-       ;; Format the arglist. Color individual items.
-       (format " (%s)"
-               (->> (s-split-words arglist)
-                 (--map (propertize it 'face 'font-lock-variable-name-face))
-                 (s-join ", ")))))))
+               (method (scl:symbol-near-point))
+               (info
+                ;; Try the class as is, as well as the meta-class.
+                (or
+                 (->> (scl:all-methods class)
+                   (-map 'scl:method-item)
+                   (-remove 'null)
+                   (--first (equal (car it) (symbol-name method))))
+
+                 (->> (scl:all-methods (concat "Meta_" class))
+                   (-map 'scl:method-item)
+                   (-remove 'null)
+                   (--first (equal (car it) (symbol-name method))))))
+               )
+    (scl:method-desc info)))
 
 (defun scl:show-minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
   (when (and (equal major-mode 'sclang-mode)
-             (symbol-at-point))
+             (scl:symbol-near-point))
     (unless (or (equal (point) scl:last-point)
                 (ac-menu-live-p)
                 (active-minibuffer-window)
