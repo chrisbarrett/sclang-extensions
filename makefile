@@ -19,4 +19,4 @@ deps    :; carton install
 package :; carton package
 
 # Delete compiled elisp files.
-clean   :; rm *.elc
+clean   :; rm -f *.elc
