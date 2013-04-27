@@ -3,9 +3,6 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 0.2.3
-;; Package-Requires: ((auto-complete "1.4.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
-;; Keywords: sclang supercollider languages tools
 
 ;; This file is not part of GNU Emacs.
 
@@ -28,244 +25,16 @@
 ;; auto-complete behavior for sclang-mode.  Communicates with the SuperCollider
 ;; runtime to provide more intelligent auto-completion.
 
-;;; Installation:
-
-;; 1. Make sure you've grabbed the latest copy of the supercollider emacs mode
-;;    off github.
-;;
-;; 2. Install this package with `M-x package-install-file`
-;;
-;; 3. Add this mode to your sclang hooks:
-;;    (add-hook 'sclang-mode-hook 'sclang-ac-mode)
-
 ;;; Code:
-
-;;; Initialize packages.
-;;; TODO: Remove if this package ever goes on MELPA.
-(eval-and-compile
-  (let ((package-archives '(("melpa" . "http://melpa.milkbox.net/packages/"))))
-    (package-initialize)
-    (unless package-archive-contents (package-refresh-contents))
-    (dolist (pkg '(auto-complete dash s))
-      (unless (package-installed-p pkg)
-        (package-install pkg)))))
-
-;;; ----------------------------------------------------------------------------
 
 (require 'dash)
 (require 's)
 (require 'auto-complete)
-(autoload 'sclang-eval-string "sclang-help")
-(autoload 'thing-at-point-looking-at "thingatpt")
+(require 'sclang-extensions-utils)
 
-(defgroup sclang-ac nil
-  "Improved auto-complete for SuperCollider."
-  :group 'languages
-  :prefix "sclang-ac")
-
-(defcustom sclang-ac-verbose
-  nil
+(defcustom sclang-ac-verbose nil
   "If non-nil, print extra debugging info to the messages buffer."
-  :group 'sclang-ac)
-
-;;; ----------------------------------------------------------------------------
-
-(defun* scl:blocking-eval-string (expr &optional (timeout-ms 50))
-  "Ask SuperCollider to evaluate the given string EXPR. Wait a maximum TIMEOUT-MS."
-  (unless (s-blank? expr)
-    (let ((result nil)
-          (elapsed 0)
-          ;; Prevent expressions from crashing sclang.
-          (fmt (format "try { Emacs.message((%s).asCompileString) } {|err| err;}" expr))
-          )
-      ;; SuperCollider will eval the string and then call back with the result.
-      ;; We rebind Emacs' `message' action to intercept the response.
-
-      (flet ((message (str &rest _) (setq result str)))
-
-        (sclang-eval-string fmt)
-
-        ;; Block until we receive a response or the timeout expires.
-        (while (and (not result) (> timeout-ms elapsed))
-          (sleep-for 0 10)
-          (setq elapsed (+ 10 elapsed)))
-        result))))
-
-(defun scl:deserialize (str)
-  "Parse the SuperCollider response STR."
-  (when str
-    (->> str
-      ;; Parse SuperCollider arrays to lists.
-      (s-replace "," "")
-      (s-replace "[" "(")
-      (s-replace "]" ")")
-      (read))))
-
-(defun scl:request (format-string &rest args)
-  "Define a blocking request to SuperCollider.
-Empty responses are returned as nil."
-  (let ((response
-         (scl:deserialize
-          (scl:blocking-eval-string
-           (apply 'format format-string args)))))
-    (if (and (stringp response)
-             (s-blank? response))
-        nil
-      response)))
-
-(defun scl:methods (class)
-  "Return a list of methods implemented by CLASS."
-  (unless (s-blank? class)
-    (scl:request "%s.methods.collect {|m| [m.name, m.argList, m.ownerClass] }"
-                 class)))
-
-(defun scl:all-methods (class)
-  "Return a list of methods implemented by CLASS and its superclasses."
-  (unless (s-blank? class)
-    (->> (cons class (scl:superclasses class))
-      (-mapcat 'scl:methods)
-      (-uniq))))
-
-(defun scl:instance-vars (class)
-  "Return a list of the instance variables of CLASS."
-  (unless (s-blank? class)
-    (scl:request "%s.instVarNames.collect(_.asString)" class)))
-
-(defun scl:class-vars (class)
-  "Return a list of the class variables of CLASS."
-  (unless (s-blank? class)
-    (scl:request "%s.classVarNames.collect(_.asString)" class)))
-
-(defun scl:superclasses (class)
-  "Return a list of superclasses for CLASS."
-  (unless (s-blank? class)
-    (-map 'symbol-name (scl:request "%s.superclasses" class))))
-
-(defun scl:subclasses (class)
-  "Return the direct subclasses of CLASS."
-  (unless (s-blank? class)
-    (-map 'symbol-name (scl:request "%s.subclasses" class))))
-
-(defun scl:class-summary (class)
-  "Return the summary for the given class."
-  (unless (s-blank? class)
-    (scl:request "SCDoc.documents[\"Classes/%s\"].summary" class)))
-
-(defun scl:class-of (expr)
-  "Evaluate EXPR and return the class of the result."
-  (unless (s-blank? expr)
-    (scl:blocking-eval-string (format "(%s).class" expr))))
-
-(defun scl:ensure-non-meta-class (class)
-  "Make sure that the given CLASS name is not prefixed by Meta_.
-This is necessary when looking up documentation, because class
-methods are actually instance methods of the meta-class."
-  (s-chop-prefix "Meta_" class))
-
-(defun scl:method-arg-info (class method-name)
-  "Get the name and description of each argument for a method. "
-  (let ((k (scl:ensure-non-meta-class class)))
-    (or
-     ;; Try class method.
-     (scl:request
-      (concat "SCDoc.getMethodDoc(\"%s\", \"*%s\")"
-              ".findChild(\\METHODBODY)"
-              ".findChild(\\ARGUMENTS).children.collect{|x| "
-              "[x.text, x.findChild(\\PROSE).findChild(\\TEXT).text] "
-              "} ") k method-name)
-     ;; Try instance method.
-     (scl:request
-      (concat "SCDoc.getMethodDoc(\"%s\", \"-%s\")"
-              ".findChild(\\METHODBODY)"
-              ".findChild(\\ARGUMENTS).children.collect{|x| "
-              "[x.text, x.findChild(\\PROSE).findChild(\\TEXT).text] " "} ")
-      k method-name))))
-
-(defun scl:all-classes ()
-  "Return the list of classes known to SuperCollider."
-  (->> "Class.allClasses.asArray"
-      (scl:blocking-eval-string)
-      (s-replace "class" "")
-      (scl:deserialize)
-      (-map 'symbol-name)))
-
-;;; Things at point.
-
-(defun scl:between? (n start end)
-  "Non-nil if N is between START and END, inclusively."
-  (and (>= n start) (<= n end)))
-
-(defun* scl:find-enclosing-braces-forward (&optional (pos (point)))
-  "Find the extents of braces surrounding POS, looking forwards."
-  (save-excursion
-    (-when-let (end (search-forward-regexp (rx (any "}" ")" "]")) nil t))
-      (backward-sexp)
-      (when (scl:between? pos (point) end)
-        (cons (point) end)))))
-
-(defun* scl:find-enclosing-braces-backward (&optional (pos (point)))
-  "Find the extents of braces surrounding POS, looking backward."
-  (save-excursion
-    (-when-let (start (search-backward-regexp (rx (any "{" "(" "[")) nil t))
-      (forward-sexp)
-      (when (scl:between? pos start (point))
-        (cons start (point))))))
-
-(defun* slc:surrounding-braces (&optional (pos (point)))
-  "If POS is inside a set of balanced braces return a cons, else nil.
-The car is the opening brace and the cdr is its matching closing brace. "
-  ;; Search both forward and backward to make it more likely to work for
-  ;; unbalanced expressions.
-  (let ((forward (scl:find-enclosing-braces-forward pos))
-        (back    (scl:find-enclosing-braces-backward pos)))
-    (if (and forward back)
-        ;; If we have a match, find the narrowest enclosing set of braces.
-        (cons
-         (max (car forward) (car back))
-         (min (cdr forward) (cdr back)))
-      ;; Return the match we have.
-      (or forward back))))
-
-(defun* scl:expression-start-pos (&optional (pt (point)))
-  "Return the start of the current sclang expression."
-  (save-excursion
-    (goto-char pt)
-    (let* ((bol (line-beginning-position))
-           (semicolon (save-excursion (search-backward ";" bol t)))
-           (context (slc:surrounding-braces pt)))
-      (cond
-       ;; Go to semicolons at the current level of nesting.
-       ((and semicolon (equal (slc:surrounding-braces semicolon) context))
-        (goto-char (1+ semicolon)))
-
-       ;; Go to the start of the current context.
-       (context
-        (goto-char (1+ (car context))))
-
-       ;; Skip over braced expressions in the current context.
-       ((or (thing-at-point-looking-at (rx (any "}" "]" "]" ")" "\"")))
-            (search-backward-regexp (rx (any "}" "]" "]" ")" "\"") (* nonl)) nil t))
-        (forward-char)                  ; Move to position after brace.
-        (backward-sexp)                 ; Skip over braces.
-        (forward-char -1)               ; Move to position before brace.
-        (scl:expression-start-pos))     ; Recur and continue search backward.
-
-       ;; Otherwise return the start of the line.
-       (t
-        (line-beginning-position))))))
-
-(defun scl:class-of-thing-at-point ()
-  "Return the class of the sclang expression at point."
-  (scl:logged
-    (->> (buffer-substring-no-properties (scl:expression-start-pos) (point))
-      (s-trim)
-      ;; Remove trailing dot-accessor.
-      (s-chop-suffix ".")
-      (scl:class-of))))
-
-(defun scl:looking-at-member-access? ()
-  "Return point if not looking at a member access."
-  (s-contains? "." (buffer-substring (scl:expression-start-pos) (point))))
+  :group 'sclang-extensions)
 
 ;;; ----------------------------------------------------------------------------
 ;;; Completion sources.
@@ -300,8 +69,6 @@ The car is the opening brace and the cdr is its matching closing brace. "
    ;; Trim and ellipsize.
    (t
     (s-append scl:ellipsis (substring str 0 (1- maxlen))))))
-
-(scl:ellipsize "(the quick brown fox jumps over the lazy dog ho ho ho ho ho ho)")
 
 (defun scl:method-bullets (method-arg-info)
   "Build a bulleted list describing a method's arguments."
@@ -384,15 +151,6 @@ The car is the opening brace and the cdr is its matching closing brace. "
        (scl:ellipsize)
        (concat "\n\nvalue: ")))))
 
-(defmacro scl:logged (&rest body)
-  "Like `progn', but logs the result to messages if `sclang-ac-verbose' is non-nil."
-  (declare (indent 0))
-  (let ((result (cl-gensym)))
-    `(let ((,result (progn ,@body)))
-       (when sclang-ac-verbose
-         (message "[sclang-ac]: %s" ,result))
-       ,result)))
-
 (ac-define-source sclang-classes
   '((candidates . (scl:logged
                     (unless (scl:looking-at-member-access?)
@@ -459,27 +217,26 @@ The car is the opening brace and the cdr is its matching closing brace. "
   "Keymap for sclang-ac-mode.
 \\{sclang-ac-mode-map}")
 
+(defvar sclang-ac-mode-hook)
+
 ;;;###autoload
 (define-minor-mode sclang-ac-mode
   "Minor mode that provides more intelligent auto-complete behaviour for SuperCollider."
   nil nil sclang-ac-mode-map
-
-  ;; Override the sources defined by sclang-mode.
-  (setq ac-sources '(ac-source-yasnippet
-                     ac-source-sclang-ivars
-                     ac-source-sclang-classes
-                     ac-source-sclang-methods
-                     ac-source-sclang-toplevel-functions))
-
-  (auto-complete-mode +1))
+  (when sclang-ac-mode
+    ;; Override the sources defined by sclang-mode.
+    (setq ac-sources '(ac-source-yasnippet
+                       ac-source-sclang-ivars
+                       ac-source-sclang-classes
+                       ac-source-sclang-methods
+                       ac-source-sclang-toplevel-functions))
+    (auto-complete-mode +1)
+    (run-hooks 'sclang-ac-mode-hook)))
 
 (provide 'sclang-ac-mode)
 
-;;; NB: We need to use `flet', an obsolete macro. Suppress the usage warning.
-
 ;; Local Variables:
 ;; lexical-binding: t
-;; byte-compile-warnings: (not obsolete)
 ;; End:
 
 ;;; sclang-ac-mode.el ends here
