@@ -40,8 +40,8 @@
 (defmacro check-parses (desc _sep response-string _-> expected )
   "Check that the given response from SuperCollider is parsed to expected.
 * DESC describes the type of response being parsed.
-* RESPONSE-STRING is simulates a response from SuperCollider.
-* EXPECTED is the that should be output by the parser."
+* RESPONSE-STRING is the simulated response from SuperCollider.
+* EXPECTED is the expect output by the parser."
   `(check ,(concat "check parses " desc)
      (with-stubbed-response ,response-string
        (should (equal ,expected (scl:request "SHOULD BE STUBBED OUT"))))))
@@ -77,8 +77,7 @@
     (should (not (scl:looking-at-member-access?)))))
 
 (defmacro move-to-expr-start (desc before _-> after)
-  "Check that a given motion moves point to an expected position.
-* ACTION is the movement to apply.
+  "Check that a given motion moves POINT to an expected position.
 * BEFORE and AFTER are strings, where a vertical pipe `|` represents POINT.
 * DESC is a description of the test."
   (declare (indent 1))
@@ -87,7 +86,7 @@
      (with-temp-buffer
        ;; Do all sorts of wacky string replacement. I could have just compared
        ;; the position of point against the pipe character, but comparing
-       ;; strings gives you much better error feedback in ert.
+       ;; strings gives you much better error feedback in ERT.
        (insert ,before)
        ;; delete the pipe in BEFORE
        (goto-char (1+ (s-index-of "|" ,before)))
@@ -96,7 +95,7 @@
        ;; put a pipe where we are now.
        (insert "|")
        ;; assert that the buffer now looks like AFTER.
-       (should= ,after (buffer-string)))))
+       (should (equal,after (buffer-string))))))
 
 (move-to-expr-start "stops at semicolon at same nesting level"
   "{ foo; foo| }" -> "{ foo;| foo }")
