@@ -35,7 +35,7 @@ If you haven't set up MELPA, you'll need to add the following to your init.el
 ;;; Initialize packages.
 
 (require 'package)
-(add-to-list 'package-archives '("melpa"     . "http://melpa.milkbox.net/packages/"))
+(add-to-list 'package-archives '("melpa" . "http://melpa.milkbox.net/packages/"))
 (package-initialize)
 (unless package-archive-contents (package-refresh-contents))
 ```
