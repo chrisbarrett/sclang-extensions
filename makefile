@@ -76,4 +76,4 @@ $(MANIFEST) :
 
 .PHONY: test
 test :
-	$(CARTON) exec $(EMACS) -l $(TEST_RUNNER) -f scl:run-tests-batch
+	$(CARTON) exec $(EMACS) -l $(TEST_RUNNER) -f 'scl:run-tests-batch'

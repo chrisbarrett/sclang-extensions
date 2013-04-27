@@ -29,6 +29,7 @@
 
 (require 's)
 (require 'dash)
+(require 'cl-lib)
 (autoload 'sclang-eval-string "sclang-help")
 (autoload 'thing-at-point-looking-at "thingatpt")
 
@@ -39,7 +40,7 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Communication
 
-(defun* scl:blocking-eval-string (expr &optional (timeout-ms 50))
+(cl-defun scl:blocking-eval-string (expr &optional (timeout-ms 50))
   "Ask SuperCollider to evaluate the given string EXPR. Wait a maximum TIMEOUT-MS."
   (unless (s-blank? expr)
     (let ((result nil)
@@ -177,7 +178,7 @@ methods are actually instance methods of the meta-class."
   "Non-nil if N is between START and END, inclusively."
   (and (>= n start) (<= n end)))
 
-(defun* scl:find-enclosing-braces-forward (&optional (pos (point)))
+(cl-defun scl:find-enclosing-braces-forward (&optional (pos (point)))
   "Find the extents of braces surrounding POS, looking forwards."
   (save-excursion
     (-when-let (end (search-forward-regexp (rx (any "}" ")" "]")) nil t))
@@ -185,7 +186,7 @@ methods are actually instance methods of the meta-class."
       (when (scl:between? pos (point) end)
         (cons (point) end)))))
 
-(defun* scl:find-enclosing-braces-backward (&optional (pos (point)))
+(cl-defun scl:find-enclosing-braces-backward (&optional (pos (point)))
   "Find the extents of braces surrounding POS, looking backward."
   (save-excursion
     (-when-let (start (search-backward-regexp (rx (any "{" "(" "[")) nil t))
@@ -193,7 +194,7 @@ methods are actually instance methods of the meta-class."
       (when (scl:between? pos start (point))
         (cons start (point))))))
 
-(defun* scl:surrounding-braces (&optional (pos (point)))
+(cl-defun scl:surrounding-braces (&optional (pos (point)))
   "If POS is inside a set of balanced braces return a cons, else nil.
 The car is the opening brace and the cdr is its matching closing brace. "
   ;; Search both forward and backward to make it more likely to work for
@@ -208,7 +209,7 @@ The car is the opening brace and the cdr is its matching closing brace. "
       ;; Return the match we have.
       (or forward back))))
 
-(defun* scl:expression-start-pos (&optional (pt (point)))
+(cl-defun scl:expression-start-pos (&optional (pt (point)))
   "Return the start of the current sclang expression."
   (save-excursion
     (goto-char pt)

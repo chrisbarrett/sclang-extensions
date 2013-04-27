@@ -50,11 +50,17 @@
 ;;; Load tests
 
 (message "--> Setting load-path...")
-(add-to-list 'load-path (concat (expand-file-name "..") "/"))
-(add-to-list 'load-path (file-name-directory (or load-file-name buffer-file-name)))
+
+(defun expand-dir (dir)
+  (file-name-as-directory (expand-file-name dir)))
+
+(add-to-list 'load-path (expand-dir "."))
+(add-to-list 'load-path (expand-dir ".."))
+(add-to-list 'load-path (expand-dir "./test"))
 
 (defun scl:run-tests-batch ()
   (message "--> Loading tests...")
+  (require 'sclang-extensions-utils-tests)
   (require 'sclang-ac-mode-tests)
   (message "--> Started.")
   (ert-run-tests-batch t))
