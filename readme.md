@@ -1,6 +1,6 @@
 # sclang-extensions
 
-A collection of minor modes that improve you SuperCollider experience within
+A collection of minor modes that improve your SuperCollider experience within
 Emacs. Includes improvements to auto-completion and documentation tooltips (ala
 Eldoc).
 
