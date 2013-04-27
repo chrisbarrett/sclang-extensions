@@ -25,6 +25,23 @@ documentation in the modeline.
 
 # Installation
 
+## Package
+
+`sclang-extensions` is available on [MELPA](http://melpa.milkbox.net/): `M-x
+package-install sclang-extensions`. If you haven't set up MELPA, add the
+following to your init.el:
+
+```lisp
+;;; Initialize packages.
+
+(require 'package)
+(add-to-list 'package-archives '("melpa"     . "http://melpa.milkbox.net/packages/"))
+(package-initialize)
+(unless package-archive-contents (package-refresh-contents))
+```
+
+## Manual
+
 1. Install [Carton](https://github.com/rejeep/carton):
 
    ```
