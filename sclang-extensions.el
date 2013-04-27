@@ -1,4 +1,4 @@
-;;; sclang-extensions.el --- Extensions for SuperCollider Emacs mode.
+;;; sclang-extensions.el --- Extensions for the SuperCollider Emacs mode.
 
 ;; Copyright (C) 2013 Chris Barrett
 
@@ -24,20 +24,15 @@
 
 ;;; Commentary:
 
-;; Extensions for SuperCollider Emacs mode. Each extension is implemented as a
-;; minor-mode; you can enable them individually, or enable all of them by
+;; Extensions for the SuperCollider Emacs mode. Each extension is implemented as
+;; a minor-mode; you can enable them individually, or enable all of them by
 ;; activating `sclang-extensions-mode'.
 
 ;;; Installation:
 
-;; 1. Make sure you've grabbed the latest copy of the supercollider emacs mode
-;;    off github.
+;; Add this mode to your sclang hooks:
 ;;
-;; 2. Install this package with `M-x package-install-file`
-;;
-;; 3. Add this mode to your sclang hooks:
-;;
-;;     (add-hook 'sclang-mode-hook 'sclang-extensions-mode)
+;;   (add-hook 'sclang-mode-hook 'sclang-extensions-mode)
 ;;
 
 ;;; Code:
