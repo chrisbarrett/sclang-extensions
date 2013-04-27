@@ -1,26 +1,22 @@
 emacs_d    = ~/.emacs.d
 emacs      = emacs
 emacs_args = --batch -q -l package
-src        = sclang-ac-mode.el
-tests      = sclang-ac-mode-tests.el
+pkg        = sclang-extensions-pkg.el
 
 reinstall : uninstall install
 
 # Install the package into the emacs elpa directory.
-install :
-	$(emacs) $(emacs_args) --eval \
-	   "(progn                    \
-	     (package-initialize)     \
-	     (package-install-file \"$(src)\"))"
+install : deps package
+	$(emacs) $(emacs_args) --eval                   \
+	   "(progn (package-initialize)                 \
+		   (package-install-file \"$(pkg)\"))"
 
 # Remove installed instances from the emacs elpa directory.
 uninstall :
-	rm -r $(emacs_d)/elpa/sclang-ac-mode-*
+	rm -r $(emacs_d)/elpa/sclang-extensions*
 
-# Run integration tests.
-test:
-	$(emacs) $(emacs_args) -l $(tests) -f run-tests
+deps    :; carton install
+package :; carton package
 
 # Delete compiled elisp files.
-clean :
-	rm *.elc
+clean   :; rm *.elc
