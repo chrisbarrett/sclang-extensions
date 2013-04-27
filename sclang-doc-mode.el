@@ -31,7 +31,7 @@
 
 ;;; ----------------------------------------------------------------------------
 
-(defun slc:show-minibuffer-doc ()
+(defun scl:show-minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
   (message "Hello!"))
 
@@ -42,7 +42,7 @@
   "Activate the minibuffer doc timer."
   (scl:stop-timer)
   (setq scl:doc-timer (run-with-idle-timer sclang-doc-idle-delay 'repeat
-                                           'slc:show-minibuffer-doc)))
+                                           'scl:show-minibuffer-doc)))
 
 (defun scl:stop-timer ()
   "Stop the minibuffer doc timer."

@@ -25,43 +25,7 @@
 
 ;;; Code:
 
-(package-initialize)
-
-(dolist (pkg '(auto-complete dash popup s))
-  (unless (package-installed-p pkg)
-    (package-install pkg)))
-
-(require 'ert)
-(require 'sclang)
-(require 'sclang-ac-mode)
-
 ;;; ----------------------------------------------------------------------------
-
-(defmacro check (desc &rest body)
-  "Wrap `ert-deftest' with a simpler interface.
-* DESC is a string describing the test.
-* BODY forms constitute the test."
-  (declare (indent 1))
-  `(ert-deftest
-       ,(intern (replace-regexp-in-string "[ .]" "-" desc)) ()
-     ,@body))
-
-(defun should-match (regex str)
-  "Assert REGEX is a match on string STR."
-  (should (string-match-p regex str)))
-
-(defun should= (x y)
-  "Assert X is `equal' to Y."
-  (should (equal x y)))
-
-;;; ----------------------------------------------------------------------------
-
-(with-temp-buffer (sclang-start))
-
-(check "methods for SinOsc should contain AR"
-  (should (-contains? (-flatten (slc:methods "SinOsc.class"))
-                      'ar)))
-
 (provide 'sclang-ac-mode-tests)
 
 ;; Local Variables:

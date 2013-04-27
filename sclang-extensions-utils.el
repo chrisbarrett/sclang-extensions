@@ -193,7 +193,7 @@ methods are actually instance methods of the meta-class."
       (when (scl:between? pos start (point))
         (cons start (point))))))
 
-(defun* slc:surrounding-braces (&optional (pos (point)))
+(defun* scl:surrounding-braces (&optional (pos (point)))
   "If POS is inside a set of balanced braces return a cons, else nil.
 The car is the opening brace and the cdr is its matching closing brace. "
   ;; Search both forward and backward to make it more likely to work for
@@ -214,10 +214,10 @@ The car is the opening brace and the cdr is its matching closing brace. "
     (goto-char pt)
     (let* ((bol (line-beginning-position))
            (semicolon (save-excursion (search-backward ";" bol t)))
-           (context (slc:surrounding-braces pt)))
+           (context (scl:surrounding-braces pt)))
       (cond
        ;; Go to semicolons at the current level of nesting.
-       ((and semicolon (equal (slc:surrounding-braces semicolon) context))
+       ((and semicolon (equal (scl:surrounding-braces semicolon) context))
         (goto-char (1+ semicolon)))
 
        ;; Go to the start of the current context.
