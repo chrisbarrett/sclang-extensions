@@ -61,6 +61,11 @@
     (insert "foo.bar")
     (should (scl:looking-at-member-access?))))
 
+(check "foobar form is not understood as a member access"
+  (with-temp-buffer
+    (insert "foobar")
+    (should (not (scl:looking-at-member-access?)))))
+
 (check "foo(bar) form is not understood as a member access"
   (with-temp-buffer
     (insert "foo(bar)")
