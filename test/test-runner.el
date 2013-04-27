@@ -61,7 +61,6 @@
 (defun scl:run-tests-batch ()
   (message "--> Loading tests...")
   (require 'sclang-extensions-utils-tests)
-  (require 'sclang-ac-mode-tests)
   (message "--> Started.")
   (ert-run-tests-batch t))
 
