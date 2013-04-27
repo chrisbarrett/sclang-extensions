@@ -32,10 +32,6 @@
 (require 'auto-complete)
 (require 'sclang-extensions-utils)
 
-(defcustom sclang-ac-verbose nil
-  "If non-nil, print extra debugging info to the messages buffer."
-  :group 'sclang-extensions)
-
 ;;; ----------------------------------------------------------------------------
 ;;; Completion sources.
 ;;

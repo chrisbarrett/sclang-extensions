@@ -32,6 +32,10 @@
 (autoload 'sclang-eval-string "sclang-help")
 (autoload 'thing-at-point-looking-at "thingatpt")
 
+(defcustom sclang-ac-verbose nil
+  "If non-nil, print extra debugging info to the messages buffer."
+  :group 'sclang-extensions)
+
 ;;; ----------------------------------------------------------------------------
 ;;; Communication
 
