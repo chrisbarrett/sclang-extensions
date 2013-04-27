@@ -33,18 +33,23 @@
   `(flet ((scl:blocking-eval-string (&rest _args) ,response-string))
     ,@body))
 
-(defmacro check-parser (desc response-string -> expected)
+(defmacro check-parses (response-string _-> expected _sep desc)
   "Check that the given response from SuperCollider is parsed to expected.
 * DESC describes the type of response being parsed.
 * RESPONSE-STRING is simulates a response from SuperCollider.
 * EXPECTED is the that should be output by the parser."
-  (declare (indent 1))
-  `(check ,(concat "check parser " desc)
+  (declare (indent 2))
+  `(check ,(concat "check parses " desc)
      (with-stubbed-response ,response-string
        (should (equal ,expected (scl:request "SHOULD BE STUBBED OUT"))))))
 
-(check-parser "Arrays parse to lists"
-  "[1, 2, 3]" -> '(1 2 3))
+(check-parses "[1, 2, 3]" -> '(1 2 3) : "Arrays to lists")
+
+(check-parses " \"foo\" " -> "foo"    : "Strings to strings")
+
+(check-parses ""          -> nil      : "empty strings to nil")
+
+(check-parses " "         -> nil      : "blank strings to nil")
 
 (provide 'sclang-extensions-utils-tests)
 

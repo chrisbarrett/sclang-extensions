@@ -29,6 +29,7 @@
 
 (require 'dash)
 (require 's)
+(require 'cl-lib)
 (require 'auto-complete)
 (require 'sclang-extensions-utils)
 
@@ -46,7 +47,7 @@
 (defconst scl:bullet "•")
 (defconst scl:ellipsis "…")
 
-(defun* scl:ellipsize (str &optional (maxlen 30))
+(cl-defun scl:ellipsize (str &optional (maxlen 30))
   "Ellipsize string STR if it is longer than MAXLEN."
   (cond
 
@@ -75,7 +76,7 @@
               (s-join (format "\n\n%s " scl:bullet))
               (s-prepend (format "\n%s " scl:bullet))))))
 
-(defun* scl:selected-method-doc ((arglist owner)
+(cl-defun scl:selected-method-doc ((arglist owner)
                                  &optional (name (ac-selected-candidate)))
   "Show documentation for the currently selected method in the `ac-menu'."
   (s-concat
@@ -86,7 +87,7 @@
    ;; Display arglist details.
    (scl:method-bullets (scl:method-arg-info owner name))))
 
-(defun* scl:method-item ((name arglist owner))
+(cl-defun scl:method-item ((name arglist owner))
   "Stringify and process the elements of an sclang method item."
   (let ((sym (eval name)))
     (when (symbolp sym)
@@ -94,7 +95,7 @@
             (eval arglist)
             (scl:ensure-non-meta-class (symbol-name owner))))))
 
-(defun* scl:class-doc-subclasses (class &optional (maxlen 5))
+(cl-defun scl:class-doc-subclasses (class &optional (maxlen 5))
   "Return a list of subclasses. It will be ellipsized if longer than MAXLEN"
   (let* ((subclasses (scl:subclasses class))
          ;; Show MAXLEN subclasses before ellipsizing.
@@ -134,7 +135,7 @@
     (reverse)
     (--first (scl:class-defines? it name))))
 
-(defun* scl:selected-var-doc
+(cl-defun scl:selected-var-doc
     (var-name &optional (class scl:last-class))
   "Get the documentation for VAR-NAME."
   (let ((qual-sym (format "%s.%s" (scl:find-declaring-class class var-name) var-name)))

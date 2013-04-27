@@ -3,8 +3,6 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 0.2.3
-;; Keywords: sclang supercollider languages tools
 
 ;; This file is not part of GNU Emacs.
 
@@ -30,6 +28,7 @@
 (require 's)
 (require 'dash)
 (require 'cl-lib)
+(require 'cl) ; needed for `flet'
 (autoload 'sclang-eval-string "sclang-help")
 (autoload 'thing-at-point-looking-at "thingatpt")
 
@@ -74,14 +73,15 @@
 (defun scl:request (format-string &rest args)
   "Define a blocking request to SuperCollider.
 Empty responses are returned as nil."
-  (let ((response
-         (scl:deserialize
-          (scl:blocking-eval-string
-           (apply 'format format-string args)))))
-    (if (and (stringp response)
-             (s-blank? response))
-        nil
-      response)))
+  (let ((response (scl:blocking-eval-string
+                   (apply 'format format-string args))))
+    (unless (or (null response)
+                (and (stringp response)
+                     (s-blank? (s-trim response))))
+      (condition-case _err
+          (scl:deserialize response)
+        (error
+         (warn "[scl] Warning: Unparseable response"))))))
 
 (defmacro scl:logged (&rest body)
   "Like `progn', but logs the result to messages if `sclang-ac-verbose' is non-nil."
@@ -89,7 +89,7 @@ Empty responses are returned as nil."
   (let ((result (cl-gensym)))
     `(let ((,result (progn ,@body)))
        (when sclang-ac-verbose
-         (message "[sclang-ac]: %s" ,result))
+         (message "[scl] %s" ,result))
        ,result)))
 
 ;;; ----------------------------------------------------------------------------
@@ -256,7 +256,7 @@ The car is the opening brace and the cdr is its matching closing brace. "
 ;;; NB: We need to use `flet', an obsolete macro. Suppress the usage warning.
 
 ;; Local Variables:
-;; byte-compile-warnings: (not obsolete)
+;; byte-compile-warnings: (not obsolete cl-functions)
 ;; lexical-binding: t
 ;; End:
 

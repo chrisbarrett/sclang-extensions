@@ -1,3 +1,5 @@
+TEST_D     = $(abspath ./test)
+
 CARTON     = carton
 EMACS      = emacs --batch -q -l package
 EMACS_D    = $(shell $(EMACS) --eval '(princ (expand-file-name user-emacs-directory))')
@@ -10,7 +12,7 @@ SRCS        = $(filter-out $(wildcard *-pkg.el), $(wildcard *.el))
 PACKAGE_INCLUDES = $(SRCS) $(MANIFEST)
 
 LOAD_EL     = $(patsubst %,-l %, $(SRCS))
-TEST_RUNNER = $(abspath test/test-runner.el)
+TEST_RUNNER = $(abspath $(TEST_D)/test-runner.el)
 
 # ============================================================================
 
@@ -38,11 +40,15 @@ deps :
 # Cleaning tasks
 
 .PHONY: clean
-clean : clean-elc clean-deps clean-package
+clean : clean-elc clean-deps clean-package clean-tests
 
 .PHONY: clean-elc
 clean-elc :
 	rm -f *.elc
+
+.PHONY: clean-tests
+clean-tests :
+	rm -f $(TEST_D)/*.elc
 
 .PHONY: clean-deps
 clean-deps :
