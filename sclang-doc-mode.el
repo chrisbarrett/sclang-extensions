@@ -25,15 +25,71 @@
 
 ;;; Code:
 
-(defcustom sclang-doc-idle-delay 0.25
+(require 'dash)
+(require 's)
+(require 'cl-lib)
+(require 'sclang-extensions-utils)
+(autoload 'ac-menu-live-p "auto-complete")
+
+(defcustom sclang-doc-idle-delay
+  (if (boundp 'eldoc-idle-delay)
+      eldoc-idle-delay
+      0.5)
   "Delay in seconds before displaying documentation in the minibuffer."
   :group 'sclang-extensions)
 
 ;;; ----------------------------------------------------------------------------
 
+(defvar scl:last-point nil
+  "Holds the last position of POINT to prevent message double-ups.")
+
+(cl-defun scl:class-desc-at-point (&optional (class (symbol-at-point)))
+  "Return a propertized string describing CLASS."
+  (let ((k (symbol-name class)))
+    (when (-contains? (scl:all-classes) k)
+      (concat
+       ;; Class name.
+       (propertize k 'face 'font-lock-type-face)
+       ;; Description.
+       ": " (scl:class-summary k)))))
+
+(defun scl:method-desc-at-point ()
+  "Return a propertized arglist of the method at point if available."
+  (-when-let* ((class (and (scl:looking-at-member-access?)
+                           (scl:class-of-thing-at-point)))
+               (method (symbol-at-point)))
+    (destructuring-bind (name arglist owner)
+        (->> (scl:all-methods class)
+          (-map 'scl:method-item)
+          (-remove 'null)
+          (assoc (symbol-name method)))
+      (concat
+       ;; Declaring class name
+       (propertize owner 'face 'font-lock-type-face)
+       "."
+       ;; Method name
+       (propertize name 'face 'font-lock-function-name-face)
+       ;; Format the arglist. Color individual items.
+       (format " (%s)"
+               (->> (s-split-words arglist)
+                 (--map (propertize it 'face 'font-lock-variable-name-face))
+                 (s-join ", ")))))))
+
 (defun scl:show-minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
-  (message "Hello!"))
+  (when (and (equal major-mode 'sclang-mode)
+             (symbol-at-point))
+    (unless (or (equal (point) scl:last-point)
+                (ac-menu-live-p)
+                (active-minibuffer-window)
+                cursor-in-echo-area
+                executing-kbd-macro)
+      (setq scl:last-point (point))
+      ;; Display a message in the minibuffer if we're looking at something
+      ;; interesting.
+      (-when-let (doc (or (scl:class-desc-at-point)
+                          (scl:method-desc-at-point)))
+        (message doc)))))
 
 (defvar scl:doc-timer nil
   "Timer to trigger minibuffer documentation.")
@@ -57,7 +113,6 @@
   "Displays minibuffer documentation for the SuperCollider symbol at point."
   nil " doc" nil
   (cond
-
    ;; Enable mode.
    (sclang-doc-mode
     (scl:start-timer)

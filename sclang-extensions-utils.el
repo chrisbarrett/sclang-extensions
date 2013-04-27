@@ -163,13 +163,20 @@ methods are actually instance methods of the meta-class."
               "[x.text, x.findChild(\\PROSE).findChild(\\TEXT).text] " "} ")
       k method-name))))
 
+(defvar scl:all-classes-cache nil)
+
 (defun scl:all-classes ()
-  "Return the list of classes known to SuperCollider."
-  (->> "Class.allClasses.asArray"
-      (scl:blocking-eval-string)
-      (s-replace "class" "")
-      (scl:deserialize)
-      (-map 'symbol-name)))
+  "Return the list of all classes known to SuperCollider.
+Caches the result so future lookups are faster."
+  (or scl:all-classes-cache
+      ;; Request classes list from SC, then set the cache.
+      (let ((xs (->> "Class.allClasses.asArray"
+                  (scl:blocking-eval-string)
+                  (s-replace "class" "")
+                  (scl:deserialize)
+                  (-map 'symbol-name))))
+        (when xs (setq scl:all-classes-cache xs))
+        xs)))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Syntax

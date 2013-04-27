@@ -154,7 +154,8 @@
                       (scl:all-classes))))
     (document   . scl:class-documentation)
     (symbol     . "s")
-    (limit      . nil)))
+    (limit      . nil)
+    (cache)))
 
 (ac-define-source sclang-toplevel-functions
   '((candidates . (scl:logged

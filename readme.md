@@ -20,8 +20,9 @@ no longer prompt you with `Array` for example.
 
 ## sclang-doc-mode
 
-Under development. Intended to provide eldoc-style class and method
-documentation in the modeline.
+Shows information about the class or method under the cursor in the minibuffer.
+This lets you see arglists and class descriptions without trawling through the
+SuperCollider help system.
 
 # Installation
 
