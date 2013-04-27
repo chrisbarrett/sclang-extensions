@@ -56,6 +56,21 @@
 
 ;;; Syntax
 
+(check "foo.bar form is understood as a member access"
+  (with-temp-buffer
+    (insert "foo.bar")
+    (should (scl:looking-at-member-access?))))
+
+(check "foo(bar) form is not understood as a member access"
+  (with-temp-buffer
+    (insert "foo(bar)")
+    (should (not (scl:looking-at-member-access?)))))
+
+(check "foo [bar] form is not understood as a member access"
+  (with-temp-buffer
+    (insert "foo [bar]")
+    (should (not (scl:looking-at-member-access?)))))
+
 (defmacro move-to-expr-start (desc before _-> after)
   "Check that a given motion moves point to an expected position.
 * ACTION is the movement to apply.
