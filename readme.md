@@ -4,7 +4,7 @@ A collection of minor modes that improve your SuperCollider experience within
 Emacs. Includes improvements to auto-completion and documentation tooltips (ala
 Eldoc).
 
-![Autocomplete popup example](https://raw.github.com/chrisbarrett/sclang-extensions/master/sclang-ac-mode.png)
+![Autocomplete popup example](https://raw.github.com/chrisbarrett/sclang-extensions/master/assets/sclang-ac-mode.png)
 
 ## sclang-ac-mode
 
