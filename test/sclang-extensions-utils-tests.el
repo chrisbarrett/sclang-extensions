@@ -26,6 +26,10 @@
 ;;; Code:
 
 (require 'sclang-extensions-utils)
+(require 's)
+(autoload 'check "test-runner")
+
+;;; Response parsing
 
 (defmacro with-stubbed-response (response-string &rest body)
   "Rebind `scl:blocking-eval-string' to return RESPONSE-STRING in BODY."
@@ -33,23 +37,64 @@
   `(flet ((scl:blocking-eval-string (&rest _args) ,response-string))
     ,@body))
 
-(defmacro check-parses (response-string _-> expected _sep desc)
+(defmacro check-parses (desc _sep response-string _-> expected )
   "Check that the given response from SuperCollider is parsed to expected.
 * DESC describes the type of response being parsed.
 * RESPONSE-STRING is simulates a response from SuperCollider.
 * EXPECTED is the that should be output by the parser."
-  (declare (indent 2))
   `(check ,(concat "check parses " desc)
      (with-stubbed-response ,response-string
        (should (equal ,expected (scl:request "SHOULD BE STUBBED OUT"))))))
 
-(check-parses "[1, 2, 3]" -> '(1 2 3) : "Arrays to lists")
+(check-parses "Arrays to lists"      : "[1, 2, 3]" -> '(1 2 3))
 
-(check-parses " \"foo\" " -> "foo"    : "Strings to strings")
+(check-parses "Strings to strings"   : " \"foo\" " -> "foo")
 
-(check-parses ""          -> nil      : "empty strings to nil")
+(check-parses "empty strings to nil" : ""          -> nil)
 
-(check-parses " "         -> nil      : "blank strings to nil")
+(check-parses "blank strings to nil" : " "         -> nil)
+
+;;; Syntax
+
+(defmacro move-to-expr-start (desc before _-> after)
+  "Check that a given motion moves point to an expected position.
+* ACTION is the movement to apply.
+* BEFORE and AFTER are strings, where a vertical pipe `|` represents POINT.
+* DESC is a description of the test."
+  (declare (indent 1))
+  (cl-assert (equal (length before) (length after)))
+  `(check ,(concat "check move to expression start " desc)
+     (with-temp-buffer
+       ;; Do all sorts of wacky string replacement. I could have just compared
+       ;; the position of point against the pipe character, but comparing
+       ;; strings gives you much better error feedback in ert.
+       (insert ,before)
+       ;; delete the pipe in BEFORE
+       (goto-char (1+ (s-index-of "|" ,before)))
+       (delete-char 1)
+       (goto-char (scl:expression-start-pos))
+       ;; put a pipe where we are now.
+       (insert "|")
+       ;; assert that the buffer now looks like AFTER.
+       (should= ,after (buffer-string)))))
+
+(move-to-expr-start "stops at semicolon at same nesting level"
+  "{ foo; foo| }" -> "{ foo;| foo }")
+
+(move-to-expr-start "skips semicolon at different nesting level"
+  " { foo; foo } |" -> "| { foo; foo } ")
+
+(move-to-expr-start "skips over braces"
+  "foo { bar } |" -> "|foo { bar } ")
+
+(move-to-expr-start "skips over lists"
+  " [1, 2, 3] |" -> "| [1, 2, 3] ")
+
+(move-to-expr-start "skips over arglists"
+  " foo(bar) |" -> "| foo(bar) ")
+
+(move-to-expr-start "moves to start in multiline expression"
+  "foo { \n bar \n } |" -> "|foo { \n bar \n } ")
 
 (provide 'sclang-extensions-utils-tests)
 

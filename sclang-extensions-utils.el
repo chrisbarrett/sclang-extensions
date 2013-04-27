@@ -230,7 +230,8 @@ The car is the opening brace and the cdr is its matching closing brace. "
             (search-backward-regexp (rx (any "}" "]" "]" ")" "\"") (* nonl)) nil t))
         (forward-char)                  ; Move to position after brace.
         (backward-sexp)                 ; Skip over braces.
-        (forward-char -1)               ; Move to position before brace.
+        (ignore-errors
+          (forward-char -1))            ; Move to position before brace.
         (scl:expression-start-pos))     ; Recur and continue search backward.
 
        ;; Otherwise return the start of the line.
