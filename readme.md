@@ -25,11 +25,10 @@ documentation in the modeline.
 
 # Installation
 
-## Package
+`sclang-extensions` is available on [MELPA](http://melpa.milkbox.net/). This is
+the easiest way to install.
 
-`sclang-extensions` is available on [MELPA](http://melpa.milkbox.net/): `M-x
-package-install sclang-extensions`. If you haven't set up MELPA, add the
-following to your init.el:
+If you haven't set up MELPA, you'll need to add the following to your init.el
 
 ```lisp
 ;;; Initialize packages.
@@ -40,7 +39,23 @@ following to your init.el:
 (unless package-archive-contents (package-refresh-contents))
 ```
 
-## Manual
+Once MELPA is configured:
+
+1. `M-x package-install sclang-extensions`.
+
+2. Configure your init.el:
+
+   ```lisp
+   (add-hook 'sclang-mode-hook 'sclang-extensions-mode)
+   ```
+
+You will need to install the SuperCollider language mode for Emacs if you do not
+already have it. Grab the latest version
+[here](https://github.com/supercollider/supercollider/tree/master/editors/scel).
+
+# Development
+
+You will need carton, make and git to build the project.
 
 1. Install [Carton](https://github.com/rejeep/carton):
 
@@ -62,7 +77,3 @@ following to your init.el:
    ```lisp
    (add-hook 'sclang-mode-hook 'sclang-extensions-mode)
    ```
-
-You will need to install the SuperCollider language mode for Emacs if you do not
-already have it. Grab the latest version
-[here](https://github.com/supercollider/supercollider/tree/master/editors/scel).
