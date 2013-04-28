@@ -102,7 +102,7 @@
 ;;;###autoload
 (define-minor-mode sclang-doc-mode
   "Displays minibuffer documentation for the SuperCollider symbol at point."
-  nil " doc" nil
+  nil nil nil
   (cond
    ;; Enable mode.
    (sclang-doc-mode

@@ -39,29 +39,51 @@
 
 (require 'sclang-ac-mode)
 (require 'sclang-doc-mode)
+(require 'sclang-post-mode)
+(require 'dash)
 
 (defgroup sclang-extensions nil
   "Extensions to the SuperCollider (sclang) Emacs mode."
   :group 'languages)
 
+(defcustom sclang-bury-post-on-start? t
+  "Whether to bury the sclang Post buffer when starting the mode.
+The Post buffer becomes much less useful when you use `sclang-post-mode'."
+  :group 'sclang-extensions
+  :type 'boolean)
+
 (defvar sclang-extensions-mode-hook)
+
+(defun scl:bury-post-buffer ()
+  "Hide the SuperCollider Post buffer."
+  (when (boundp 'sclang-post-buffer)
+    (--each (--filter (equal sclang-post-buffer (buffer-name (window-buffer it)))
+                      (window-list))
+      (delete-window it))))
 
 ;;;###autoload
 (define-minor-mode sclang-extensions-mode
   "Enable all extensions to the sclang Emacs mode."
-  nil nil nil
+  nil " scl" nil
   (cond
 
    ;; Enable mode.
    (sclang-extensions-mode
+    (when sclang-bury-post-on-start?
+      (scl:bury-post-buffer)
+      (add-hook 'sclang-mode-hook 'scl:bury-post-buffer t))
+
     (sclang-ac-mode +1)
     (sclang-doc-mode +1)
+    (sclang-post-mode +1)
     (run-hooks 'sclang-extensions-mode-hook))
 
    ;; Disable mode.
    (t
     ;; Deactivate minor modes.
+    (remove-hook 'sclang-mode-hook 'scl:bury-post-buffer t)
     (sclang-ac-mode -1)
+    (sclang-post-mode -1)
     (sclang-doc-mode -1))))
 
 (provide 'sclang-extensions)
