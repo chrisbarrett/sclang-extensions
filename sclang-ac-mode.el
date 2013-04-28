@@ -101,8 +101,8 @@
          ;; Show MAXLEN subclasses before ellipsizing.
          (sub-str (->> subclasses
                     (-take maxlen)
-                    (s-join scl:bullet)
-                    (s-prepend scl:bullet)))
+                    (s-join (concat "\n " scl:bullet " "))
+                    (s-prepend (concat "\n " scl:bullet " "))))
          (sub-str (if (< maxlen (length subclasses))
                       (s-append "\n  …" sub-str)
                     sub-str)))
