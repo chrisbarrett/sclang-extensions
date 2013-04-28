@@ -14,6 +14,7 @@ PACKAGE_INCLUDES = $(SRCS) $(MANIFEST)
 
 LOAD_EL     = $(patsubst %,-l %, $(SRCS))
 TEST_RUNNER = $(abspath $(TEST_D)/test-runner.el)
+TAGS        = TAGS
 
 # ============================================================================
 
@@ -39,11 +40,15 @@ $(ELPA) :
 deps : $(ELPA)
 	$(CARTON) update
 
+.PHONY: tags
+tags :
+	ctags -e -R --extra=+fq --exclude=.git -f $(TAGS)
+
 # ----------------------------------------------------------------------------
 # Cleaning tasks
 
 .PHONY: clean
-clean : clean-elc clean-deps clean-package clean-tests
+clean : clean-elc clean-deps clean-package clean-tests clean-tags
 
 .PHONY: clean-elc
 clean-elc :
@@ -62,6 +67,10 @@ clean-package :
 	rm -rf $(PACKAGE_DIR)
 	rm -f  $(MANIFEST)
 	rm -f  $(PACKAGE_TAR)
+
+.PHONY: clean-tags
+clean-tags :
+	rm -f $(TAGS)
 
 # ----------------------------------------------------------------------------
 # Build tasks
