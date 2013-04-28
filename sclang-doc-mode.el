@@ -106,10 +106,13 @@
   (cond
    ;; Enable mode.
    (sclang-doc-mode
-    (make-local-variable 'eldoc-documentation-function)
-    (setq eldoc-documentation-function 'scl:minibuffer-doc)
-    (eldoc-mode +1)
-    (run-hooks 'sclang-doc-mode-hook))
+    ;; Don't do anything if this is the Post buffer.
+    (unless (and (boundp 'sclang-post-buffer)
+                 (equal sclang-post-buffer (buffer-name)))
+      (make-local-variable 'eldoc-documentation-function)
+      (setq eldoc-documentation-function 'scl:minibuffer-doc)
+      (eldoc-mode +1)
+      (run-hooks 'sclang-doc-mode-hook)))
    ;; Deactivate mode.
    (t
     (eldoc-mode -1)

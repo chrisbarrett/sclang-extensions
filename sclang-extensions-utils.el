@@ -70,18 +70,18 @@
       (s-replace "]" ")")
       (read))))
 
-(defun scl:request (format-string &rest args)
+(cl-defun scl:request (format-string &rest args)
   "Define a blocking request to SuperCollider.
-Empty responses are returned as nil."
-  (let ((response (scl:blocking-eval-string
-                   (apply 'format format-string args))))
-    (unless (or (null response)
-                (and (stringp response)
-                     (s-blank? (s-trim response))))
-      (condition-case _err
-          (scl:deserialize response)
-        (error
-         (warn "[scl] Warning: Unparseable response"))))))
+Empty responses are returned as nil.
+Requests that appear malformed are also ignored unless UNSAFE? is non-nil."
+  (let ((request (apply 'format format-string args)))
+    ;; Validate input is not a cycle of bad..
+    (unless (s-contains? "ERROR:" request)
+      (let ((response (scl:blocking-eval-string request)))
+        (unless (or (null response)
+                    (and (stringp response)
+                         (s-blank? (s-trim response))))
+          (scl:deserialize response))))))
 
 (defmacro scl:logged (&rest body)
   "Like `progn', but logs the result to messages if `sclang-ac-verbose' is non-nil."

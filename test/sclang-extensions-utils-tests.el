@@ -43,7 +43,7 @@
 * EXPECTED is the expect output by the parser."
   `(check ,(concat "check parses " desc)
      (with-stubbed-response ,response-string
-       (should (equal ,expected (scl:request "SHOULD BE STUBBED OUT"))))))
+       (should (equal (scl:request ,response-string) ,expected)))))
 
 (check-parses "Arrays to lists"      : "[1, 2, 3]" -> '(1 2 3))
 
@@ -52,6 +52,8 @@
 (check-parses "empty strings to nil" : ""          -> nil)
 
 (check-parses "blank strings to nil" : " "         -> nil)
+
+(check-parses "sane requests only"   : "ERROR: "   -> nil)
 
 ;;; Syntax
 

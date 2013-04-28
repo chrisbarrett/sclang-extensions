@@ -150,7 +150,8 @@
 
 (ac-define-source sclang-classes
   '((candidates . (scl:logged
-                    (unless (scl:looking-at-member-access?)
+                    (unless (or (equal sclang-post-buffer (buffer-name))
+                                (scl:looking-at-member-access?))
                       (scl:all-classes))))
     (document   . scl:class-documentation)
     (symbol     . "s")
@@ -159,7 +160,8 @@
 
 (ac-define-source sclang-toplevel-functions
   '((candidates . (scl:logged
-                    (unless (scl:looking-at-member-access?)
+                    (unless (or (equal sclang-post-buffer (buffer-name))
+                                (scl:looking-at-member-access?))
                       (-map 'scl:method-item (scl:methods "AbstractFunction")))))
     (document   . scl:selected-method-doc)
     (symbol     . "f")
@@ -167,9 +169,10 @@
 
 (ac-define-source sclang-methods
   '((candidates . (scl:logged
-                    (->> (scl:all-methods scl:last-class)
-                      (-map 'scl:method-item)
-                      (-remove 'null))))
+                    (unless (equal sclang-post-buffer (buffer-name))
+                      (->> (scl:all-methods scl:last-class)
+                        (-map 'scl:method-item)
+                        (-remove 'null)))))
     (document   . scl:selected-method-doc)
     (prefix     . ac-prefix-default)
     (symbol     . "f")
@@ -178,7 +181,8 @@
 
 (ac-define-source sclang-ivars
   '((candidates . (scl:logged
-                    (scl:instance-vars scl:last-class)))
+                    (unless (equal sclang-post-buffer (buffer-name))
+                      (scl:instance-vars scl:last-class))))
     (prefix     . ac-prefix-default)
     (document   . scl:selected-var-doc)
     (symbol     . "v")
