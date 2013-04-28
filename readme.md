@@ -24,6 +24,13 @@ Shows information about the class or method under the cursor in the minibuffer.
 This lets you see arglists and class descriptions without trawling through the
 SuperCollider help system.
 
+## sclang-post-mode
+
+Displays feedback from SuperCollider in the minibuffer. This means you no longer
+have to keep the Post window open all the time.
+
+---
+
 # Installation
 
 `sclang-extensions` is available on [MELPA](http://melpa.milkbox.net/). This is
