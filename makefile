@@ -1,4 +1,5 @@
 TEST_D     = $(abspath ./test)
+ELPA       = $(abspath ./elpa)
 
 CARTON     = carton
 EMACS      = emacs --batch -q -l package
@@ -17,7 +18,7 @@ TEST_RUNNER = $(abspath $(TEST_D)/test-runner.el)
 # ============================================================================
 
 .PHONY: default
-default : uninstall deps install clean-package
+default : uninstall $(ELPA) install | clean-package
 
 # Installs the package to .emacs.d/elpa
 .PHONY : install
@@ -31,9 +32,11 @@ uninstall :
 	rm -rf $(EMACS_D)elpa/sclang-extensions-*
 
 # Install package dependencies.
-.PHONY : deps
-deps :
+$(ELPA) :
 	$(CARTON) install
+
+.PHONY: deps
+deps : $(ELPA)
 	$(CARTON) update
 
 # ----------------------------------------------------------------------------
@@ -56,14 +59,16 @@ clean-deps :
 
 .PHONY: clean-package
 clean-package :
-	rm -rf $(PACKAGE_DIR) $(MANIFEST) $(PACKAGE_TAR)
+	rm -rf $(PACKAGE_DIR)
+	rm -f  $(MANIFEST)
+	rm -f  $(PACKAGE_TAR)
 
 # ----------------------------------------------------------------------------
 # Build tasks
 
 # Create a package tar and clean up.
 .PHONY: package
-package : clean-package $(MANIFEST) $(PACKAGE_INCLUDES)
+package : $(MANIFEST) $(PACKAGE_INCLUDES)
 	mkdir -p  $(PACKAGE_DIR)
 	cp    -f  $(PACKAGE_INCLUDES) $(PACKAGE_DIR)
 	tar   cf  $(PACKAGE_TAR) $(PACKAGE_DIR)
