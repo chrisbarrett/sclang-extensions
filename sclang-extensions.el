@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 2.2.0
+;; Version: 2.2.1
 ;; Package-Requires: ((auto-complete "1.4.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
@@ -54,7 +54,6 @@
 
    ;; Enable mode.
    (sclang-extensions-mode
-    ;; Activate minor modes when enabled.
     (sclang-ac-mode +1)
     (sclang-doc-mode +1)
     (run-hooks 'sclang-extensions-mode-hook))

@@ -23,25 +23,19 @@
 
 ;; Minibuffer documentation for SuperCollider.
 
+;;; Installation:
+
+;; (add-hook 'sclang-mode-hook 'enable-sclang-doc)
+
 ;;; Code:
 
 (require 'dash)
 (require 's)
 (require 'cl-lib)
 (require 'sclang-extensions-utils)
-(autoload 'ac-menu-live-p "auto-complete")
-
-(defcustom sclang-doc-idle-delay
-  (if (boundp 'eldoc-idle-delay)
-      eldoc-idle-delay
-      0.5)
-  "Delay in seconds before displaying documentation in the minibuffer."
-  :group 'sclang-extensions)
+(require 'eldoc)
 
 ;;; ----------------------------------------------------------------------------
-
-(defvar scl:last-point nil
-  "Holds the last position of POINT to prevent message double-ups.")
 
 (cl-defun scl:class-desc-at-point (&optional (class (symbol-at-point)))
   "Return a propertized string describing CLASS."
@@ -96,36 +90,10 @@
                )
     (scl:method-desc info)))
 
-(defun scl:show-minibuffer-doc ()
+(defun scl:minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
-  (when (and (equal major-mode 'sclang-mode)
-             (scl:symbol-near-point))
-    (unless (or (equal (point) scl:last-point)
-                (ac-menu-live-p)
-                (active-minibuffer-window)
-                cursor-in-echo-area
-                executing-kbd-macro)
-      (setq scl:last-point (point))
-      ;; Display a message in the minibuffer if we're looking at something
-      ;; interesting.
-      (-when-let (doc (or (scl:class-desc-at-point)
-                          (scl:method-desc-at-point)))
-        (message doc)))))
-
-(defvar scl:doc-timer nil
-  "Timer to trigger minibuffer documentation.")
-
-(defun scl:start-timer ()
-  "Activate the minibuffer doc timer."
-  (scl:stop-timer)
-  (setq scl:doc-timer (run-with-idle-timer sclang-doc-idle-delay 'repeat
-                                           'scl:show-minibuffer-doc)))
-
-(defun scl:stop-timer ()
-  "Stop the minibuffer doc timer."
-  (when scl:doc-timer
-    (cancel-timer scl:doc-timer)
-    (setq scl:doc-timer nil)))
+  (or (scl:class-desc-at-point)
+      (scl:method-desc-at-point)))
 
 (defvar sclang-doc-mode-hook)
 
@@ -136,11 +104,14 @@
   (cond
    ;; Enable mode.
    (sclang-doc-mode
-    (scl:start-timer)
+    (make-local-variable 'eldoc-documentation-function)
+    (setq eldoc-documentation-function 'scl:minibuffer-doc)
+    (eldoc-mode +1)
     (run-hooks 'sclang-doc-mode-hook))
    ;; Deactivate mode.
    (t
-    (scl:stop-timer))))
+    (eldoc-mode -1)
+    (kill-local-variable 'eldoc-documentation-function))))
 
 (provide 'sclang-doc-mode)
 
