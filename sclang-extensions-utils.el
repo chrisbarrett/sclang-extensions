@@ -216,17 +216,23 @@ The car is the opening brace and the cdr is its matching closing brace. "
       ;; Return the match we have.
       (or forward back))))
 
+(defun scl:find-delimiter-backwards ()
+  "Find the first delimiter backwards within the current context."
+  (save-excursion
+    (search-backward-regexp (rx (any "," ";"))
+                            ;; Braces define surrounding context.
+                            (car (scl:surrounding-braces)) t)))
+
 (cl-defun scl:expression-start-pos (&optional (pt (point)))
   "Return the start of the current sclang expression."
   (save-excursion
     (goto-char pt)
-    (let* ((bol (line-beginning-position))
-           (semicolon (save-excursion (search-backward ";" bol t)))
-           (context (scl:surrounding-braces pt)))
+    (let ((delimiter (scl:find-delimiter-backwards))
+          (context (scl:surrounding-braces pt)))
       (cond
-       ;; Go to semicolons at the current level of nesting.
-       ((and semicolon (equal (scl:surrounding-braces semicolon) context))
-        (goto-char (1+ semicolon)))
+       ;; Go to delimiters at the current level of nesting.
+       ((and delimiter (equal (scl:surrounding-braces delimiter) context))
+        (goto-char (1+ delimiter)))
 
        ;; Go to the start of the current context.
        (context

@@ -94,13 +94,19 @@
        ;; put a pipe where we are now.
        (insert "|")
        ;; assert that the buffer now looks like AFTER.
-       (should (equal,after (buffer-string))))))
+       (should (equal ,after (buffer-string))))))
 
 (move-to-expr-start "stops at semicolon at same nesting level"
   "{ foo; foo| }" -> "{ foo;| foo }")
 
 (move-to-expr-start "skips semicolon at different nesting level"
   " { foo; foo } |" -> "| { foo; foo } ")
+
+(move-to-expr-start "stops at comma at same nesting level"
+  "( foo, foo| )" -> "( foo,| foo )")
+
+(move-to-expr-start "skips comma at different nesting level"
+  " ( foo, foo ) |" -> "| ( foo, foo ) ")
 
 (move-to-expr-start "stops at open brace at same nesting level"
   "{ foo| }" -> "{| foo }")
