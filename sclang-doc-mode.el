@@ -92,8 +92,10 @@
 
 (defun scl:minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
-  (or (scl:class-desc-at-point)
-      (scl:method-desc-at-point)))
+  ;; We don't want errors bubbling up to the user from eldoc.
+  (ignore-errors
+    (or (scl:class-desc-at-point)
+        (scl:method-desc-at-point))))
 
 (defvar sclang-doc-mode-hook)
 
