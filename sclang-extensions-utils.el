@@ -131,7 +131,11 @@ Requests that appear malformed are also ignored unless UNSAFE? is non-nil."
 (defun scl:class-summary (class)
   "Return the summary for the given class."
   (unless (s-blank? class)
-    (scl:request "SCDoc.documents[\"Classes/%s\"].summary" class)))
+    (-when-let (response (scl:request "SCDoc.documents[\"Classes/%s\"].summary" class))
+      ;; Ensure the class summary ends with a period.
+      (if (s-ends-with? "." response)
+          response
+        (format "%s." response)))))
 
 (defun scl:class-of (expr)
   "Evaluate EXPR and return the class of the result."

@@ -32,6 +32,7 @@
 (require 'cl-lib)
 (require 'auto-complete)
 (require 'sclang-extensions-utils)
+(autoload 'scl:propertised-arglist "sclang-doc-mode")
 
 ;;; ----------------------------------------------------------------------------
 ;;; Completion sources.
@@ -69,22 +70,22 @@
 
 (defun scl:method-bullets (method-arg-info)
   "Build a bulleted list describing a method's arguments."
-  (when (and method-arg-info
-             (listp method-arg-info))
-    (format "\n\narguments:%s"
+  (when (and method-arg-info (listp method-arg-info))
+    (format "\n\narguments:\n\n%s"
             (->> method-arg-info
               (--map (format "%s: \t%s" (car it) (cadr it)))
-              (s-join (format "\n\n%s " scl:bullet))
-              (s-prepend (format "\n%s " scl:bullet))))))
+              (s-join (format "\n\n %s " scl:bullet))
+              (s-prepend (format " %s " scl:bullet))))))
 
 (cl-defun scl:selected-method-doc ((arglist owner)
-                                 &optional (name (ac-selected-candidate)))
+                                   &optional (name (ac-selected-candidate)))
   "Show documentation for the currently selected method in the `ac-menu'."
   (s-concat
    ;; Display name.
    (format "%s.%s\n\n" owner name)
    ;; Display arglist.
-   (unless (s-blank? arglist) arglist)
+   (unless (s-blank? arglist)
+     (scl:propertised-arglist arglist))
    ;; Display arglist details.
    (scl:method-bullets (scl:method-arg-info owner name))))
 
