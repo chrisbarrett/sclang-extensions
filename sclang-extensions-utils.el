@@ -254,11 +254,21 @@ The car is the opening brace and the cdr is its matching closing brace. "
 (defun scl:class-of-thing-at-point ()
   "Return the class of the sclang expression at point."
   (scl:logged
-    (->> (buffer-substring-no-properties (scl:expression-start-pos) (point))
-      (s-trim)
-      ;; Remove trailing dot-accessor.
-      (s-chop-suffix ".")
-      (scl:class-of))))
+    ;; Find the first sclang token in the expression.
+    (let ((token (-> (buffer-substring-no-properties (scl:expression-start-pos) (point))
+                   (s-trim)
+                   (split-string (rx (any ".")))
+                   (car)
+                   (s-trim))))
+      (cond
+       ;; Return immediately for literals.
+       ((s-ends-with? "]" token)    "Array")
+       ((s-starts-with? "\"" token) "String")
+       ((s-starts-with? "\\" token) "Symbol")
+       ((s-numeric? token)          "Integer")
+       ;; Evaluate with SuperCollider.
+       (t
+        (scl:class-of token))))))
 
 (defun scl:looking-at-member-access? ()
   "Return point if not looking at a member access."
