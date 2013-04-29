@@ -69,7 +69,8 @@
 
 (defun scl:method-bullets (method-arg-info)
   "Build a bulleted list describing a method's arguments."
-  (when method-arg-info
+  (when (and method-arg-info
+             (listp method-arg-info))
     (format "\n\narguments:%s"
             (->> method-arg-info
               (--map (format "%s: \t%s" (car it) (cadr it)))
