@@ -45,7 +45,21 @@ string that was written to the Post buffer.")
     (message (->> (s-trim str)
                (s-lines)
                (-take sclang-post-message-max-lines)
-               (s-join "\n")))))
+               (s-join "\n")
+               (scl:maybe-propertize)))))
+
+(defun scl:maybe-propertize (str)
+  "Propertize STR if it an error or warning."
+  (cond
+   ((s-starts-with? "ERROR: " str)
+    (concat (propertize "ERROR: " 'face 'error)
+            (s-chop-prefix "ERROR: " str)))
+
+   ((s-starts-with? "WARNING: " str)
+    (concat (propertize "WARNING: " 'face 'warning)
+            (s-chop-prefix "WARNING: " str)))
+   (t
+    str)))
 
 (defadvice sclang-process-filter (after scl:relay-to-hook disable)
   "Piggy-back on the sclang process filter so we can relay received messages."
