@@ -119,7 +119,7 @@
 (move-to-expr-start "bounded at open paren"
   "(| foo )" -> "(| foo )")
 
-(move-to-expr-start "bounded at open paren"
+(move-to-expr-start "bounded at open square"
   "[| foo ]" -> "[| foo ]")
 
 (move-to-expr-start "skips over braces"
