@@ -134,6 +134,29 @@
 (move-to-expr-start "moves to start in multiline expression"
   "foo { \n bar \n } |" -> "|foo { \n bar \n } ")
 
+;;; Class inference of literals
+;;;
+;;; Should infer the types of literals in code without communicating with
+;;; SuperCollider.
+
 (provide 'sclang-extensions-utils-tests)
+
+(defmacro check-infers (expr _-> class)
+  "Check that string EXPR is inferred be an instance of CLASS."
+  `(check ,(format "check infers %s -> %s" expr class)
+     (with-temp-buffer
+       (insert ,expr)
+       (goto-char (point-max))
+       (should (equal (scl:class-of-thing-at-point)
+                      ,(symbol-name class))))))
+
+(check-infers "[1,2,3]"           -> Array)
+(check-infers "[1,2,3].collect"   -> Array)
+(check-infers "1"                 -> Integer)
+(check-infers "1.pow"             -> Integer)
+(check-infers " \"Hello\" "       -> String)
+(check-infers " \"Hello\".world " -> String)
+(check-infers " \\Symbol "        -> Symbol)
+(check-infers " \\Symbol.method " -> Symbol)
 
 ;;; sclang-extensions-utils-tests.el ends here

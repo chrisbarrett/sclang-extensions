@@ -38,14 +38,6 @@
        ,(intern (replace-regexp-in-string "[ .]" "-" desc)) ()
      ,@body))
 
-(defun should-match (regex str)
-  "Assert REGEX is a match on string STR."
-  (should (string-match-p regex str)))
-
-(defun should= (x y)
-  "Assert X is `equal' to Y."
-  (should (equal x y)))
-
 ;;; Load tests
 
 (message "--> Setting load-path...")
