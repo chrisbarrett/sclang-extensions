@@ -262,8 +262,10 @@ The car is the opening brace and the cdr is its matching closing brace. "
                    (s-trim))))
       (cond
        ;; Return immediately for literals.
+       ((s-starts-with? "[" token)  "Array")
        ((s-ends-with? "]" token)    "Array")
        ((s-starts-with? "\"" token) "String")
+       ((s-ends-with? "\"" token)   "String")
        ((s-starts-with? "\\" token) "Symbol")
        ((s-numeric? token)          "Integer")
        ;; Evaluate with SuperCollider.
