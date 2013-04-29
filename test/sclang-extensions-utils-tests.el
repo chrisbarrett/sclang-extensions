@@ -98,6 +98,10 @@
        ;; assert that the buffer now looks like AFTER.
        (should (equal ,after (buffer-string))))))
 
+;;; As a rule of thumb, scl:expression-start-pos should return the first
+;;; non-whitespace charater of the expression, or the start of the line if we're
+;;; outside a brace context.
+
 (move-to-expr-start "stops at semicolon at same nesting level"
   "{ foo; foo| }" -> "{ foo;| foo }")
 
@@ -110,17 +114,20 @@
 (move-to-expr-start "skips comma at different nesting level"
   " ( foo, foo ) |" -> "| ( foo, foo ) ")
 
+(move-to-expr-start "stops at comma before parenthesized expression"
+  "( foo(), foo| )" -> "( foo(),| foo )")
+
 (move-to-expr-start "stops at open brace at same nesting level"
   "{ foo| }" -> "{| foo }")
 
 (move-to-expr-start "bounded at open brace"
-  "{| foo }" -> "{| foo }")
+  "{| foo }" -> "{ |foo }")
 
 (move-to-expr-start "bounded at open paren"
-  "(| foo )" -> "(| foo )")
+  "(| foo )" -> "( |foo )")
 
 (move-to-expr-start "bounded at open square"
-  "[| foo ]" -> "[| foo ]")
+  "[| foo ]" -> "[ |foo ]")
 
 (move-to-expr-start "skips over braces"
   "foo { bar } |" -> "|foo { bar } ")

@@ -185,14 +185,32 @@ Caches the result so future lookups are faster."
 ;;; ----------------------------------------------------------------------------
 ;;; Syntax
 
+(defconst scl:close-braces (rx (any "}" ")" "]")))
+(defconst scl:open-braces  (rx (any "{" "(" "[")))
+
 (defun scl:between? (n start end)
   "Non-nil if N is between START and END, inclusively."
   (and (>= n start) (<= n end)))
 
+(defun scl:open-brace-position ()
+  "Return point if on open braces, otherwise search backwards for open braces."
+  (if (thing-at-point-looking-at scl:open-braces)
+      (point)
+    (save-excursion
+      (search-backward-regexp scl:open-braces nil t))))
+
+(defun scl:close-brace-position ()
+  (if (thing-at-point-looking-at scl:close-braces)
+      (point)
+    (save-excursion
+      (search-forward-regexp scl:close-braces nil t))))
+
 (cl-defun scl:find-enclosing-braces-forward (&optional (pos (point)))
   "Find the extents of braces surrounding POS, looking forwards."
   (save-excursion
-    (-when-let (end (search-forward-regexp (rx (any "}" ")" "]")) nil t))
+    (goto-char pos)
+    (-when-let (end (scl:close-brace-position))
+      (goto-char end)
       (backward-sexp)
       (when (scl:between? pos (point) end)
         (cons (point) end)))))
@@ -200,23 +218,26 @@ Caches the result so future lookups are faster."
 (cl-defun scl:find-enclosing-braces-backward (&optional (pos (point)))
   "Find the extents of braces surrounding POS, looking backward."
   (save-excursion
-    (-when-let (start (search-backward-regexp (rx (any "{" "(" "[")) nil t))
+    (goto-char pos)
+    (-when-let (start (scl:open-brace-position))
+      (goto-char start)
       (forward-sexp)
       (when (scl:between? pos start (point))
         (cons start (point))))))
 
 (cl-defun scl:surrounding-braces (&optional (pos (point)))
   "If POS is inside a set of balanced braces return a cons, else nil.
-The car is the opening brace and the cdr is its matching closing brace. "
+The car is the opening brace position and the cdr is its matching
+closing brace position."
   ;; Search both forward and backward to make it more likely to work for
   ;; unbalanced expressions.
   (let ((forward (scl:find-enclosing-braces-forward pos))
         (back    (scl:find-enclosing-braces-backward pos)))
     (if (and forward back)
-        ;; If we have a match, find the narrowest enclosing set of braces.
-        (cons
-         (max (car forward) (car back))
-         (min (cdr forward) (cdr back)))
+        ;; Return the narrowest enclosing set of braces.  This will be the pair
+        ;; with the higher starting position.
+        (if (<= (car forward) (car back))
+            back forward)
       ;; Return the match we have.
       (or forward back))))
 
