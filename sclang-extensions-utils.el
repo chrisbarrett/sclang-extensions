@@ -211,7 +211,7 @@ Caches the result so future lookups are faster."
     (goto-char pos)
     (-when-let (end (scl:close-brace-position))
       (goto-char end)
-      (backward-sexp)
+      (ignore-errors (backward-sexp))
       (when (scl:between? pos (point) end)
         (cons (point) end)))))
 
@@ -221,7 +221,7 @@ Caches the result so future lookups are faster."
     (goto-char pos)
     (-when-let (start (scl:open-brace-position))
       (goto-char start)
-      (forward-sexp)
+      (ignore-errors (forward-sexp))
       (when (scl:between? pos start (point))
         (cons start (point))))))
 
@@ -244,7 +244,7 @@ closing brace position."
 (defun scl:find-delimiter-backwards ()
   "Find the first delimiter backwards within the current context."
   (save-excursion
-    (search-backward-regexp (rx (any "," ";"))
+    (search-backward-regexp (rx (any "," ";" "+" "*" "/" "-"))
                             ;; Braces define surrounding context.
                             (car (scl:surrounding-braces)) t)))
 
@@ -256,7 +256,7 @@ closing brace position."
           (context (scl:surrounding-braces pt)))
       (cond
        ;; Go to delimiters at the current level of nesting.
-       ((and delimiter (equal (scl:surrounding-braces delimiter) context))
+       ((and delimiter (equal (scl:surrounding-braces (1+ delimiter)) context))
         (goto-char (1+ delimiter)))
 
        ;; Go to the start of the current context.

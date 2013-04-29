@@ -27,14 +27,23 @@
 
 (require 'sclang-extensions-utils)
 (require 's)
+(require 'ert)
+(autoload 'check "test-runner")
 
 ;;; Response parsing
+;;;
+;;; Ensure that the response from SuperCollider is correctly deserialized and
+;;; read into Lisp objects.
+;;;
+;;; sclang-mode is responsible for the interaction with the SuperCollider
+;;; process, so we assume that works and just test whether the parsed
+;;; representations look good.
 
 (defmacro with-stubbed-response (response-string &rest body)
   "Rebind `scl:blocking-eval-string' to return RESPONSE-STRING in BODY."
   (declare (indent 1))
   `(flet ((scl:blocking-eval-string (&rest _args) ,response-string))
-    ,@body))
+     ,@body))
 
 (defmacro check-parses (desc _sep response-string _-> expected )
   "Check that the given response from SuperCollider is parsed to expected.
@@ -55,7 +64,11 @@
 
 (check-parses "sane requests only"   : "ERROR: "   -> nil)
 
-;;; Syntax
+;;; Member access
+;;;
+;;; Basic checking for whether a given form is a member or not. This is helpful
+;;; for determining whether to show auto-competion candidates for methods or
+;;; classes.
 
 (check "foo.bar form is understood as a member access"
   (with-temp-buffer
@@ -76,6 +89,17 @@
   (with-temp-buffer
     (insert "foo [bar]")
     (should (not (scl:looking-at-member-access?)))))
+
+;;; Expression parsing
+;;;
+;;; `scl:expression-start-pos' is used to extract type and context information
+;;; around point. It does textual analysis to figure out where expressions begin
+;;; so we can do basic type-inference for method-lookup. It's important to test
+;;; it thoroughly.
+;;;
+;;; As a rule of thumb, `scl:expression-start-pos' ought to return the first
+;;; non-whitespace character of the expression, or the start of the line if
+;;; we're outside a brace context.
 
 (defmacro move-to-expr-start (desc before _-> after)
   "Check that a given motion moves POINT to an expected position.
@@ -98,10 +122,6 @@
        ;; assert that the buffer now looks like AFTER.
        (should (equal ,after (buffer-string))))))
 
-;;; As a rule of thumb, scl:expression-start-pos should return the first
-;;; non-whitespace charater of the expression, or the start of the line if we're
-;;; outside a brace context.
-
 (move-to-expr-start "stops at semicolon at same nesting level"
   "{ foo; foo| }" -> "{ foo;| foo }")
 
@@ -110,6 +130,18 @@
 
 (move-to-expr-start "stops at comma at same nesting level"
   "( foo, foo| )" -> "( foo,| foo )")
+
+(move-to-expr-start "stops at plus operator at same nesting level"
+  "( foo + foo| )" -> "( foo +| foo )")
+
+(move-to-expr-start "stops at div operator at same nesting level"
+  "( foo / foo| )" -> "( foo /| foo )")
+
+(move-to-expr-start "stops at mult operator at same nesting level"
+  "( foo * foo| )" -> "( foo *| foo )")
+
+(move-to-expr-start "stops at neg operator at same nesting level"
+  "( foo - foo| )" -> "( foo -| foo )")
 
 (move-to-expr-start "skips comma at different nesting level"
   " ( foo, foo ) |" -> "| ( foo, foo ) ")
