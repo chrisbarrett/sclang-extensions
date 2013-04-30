@@ -46,9 +46,12 @@
      ,@body))
 
 (defmacro check-parses (desc _sep response-string _-> expected )
-  "Check that the given response from SuperCollider is parsed to expected.
+  "Check that the given response from SuperCollider is parsed as expected.
+
 * DESC describes the type of response being parsed.
+
 * RESPONSE-STRING is the simulated response from SuperCollider.
+
 * EXPECTED is the expect output by the parser."
   `(check ,(concat "check parses " desc)
      (with-stubbed-response ,response-string
@@ -101,10 +104,16 @@
 ;;; non-whitespace character of the expression, or the start of the line if
 ;;; we're outside a brace context.
 
-(defmacro move-to-expr-start (desc before _-> after)
+(cl-defmacro move-to-expr-start (desc before _-> after
+                                      &key (point-marker-char "|"))
   "Check that a given motion moves POINT to an expected position.
-* BEFORE and AFTER are strings, where a vertical pipe `|` represents POINT.
-* DESC is a description of the test."
+
+* BEFORE and AFTER are strings to compare.
+
+* DESC is a description of the test.
+
+* POINT-MARKER-CHAR is the character that will represent the
+  position of point in BEFORE and AFTER strings."
   (declare (indent 1))
   (cl-assert (equal (length before) (length after)))
   `(check ,(concat "check move to expression start " desc)
@@ -113,12 +122,12 @@
        ;; the position of point against the pipe character, but comparing
        ;; strings gives you much better error feedback in ERT.
        (insert ,before)
-       ;; delete the pipe in BEFORE
-       (goto-char (1+ (s-index-of "|" ,before)))
+       ;; delete the point marker in BEFORE
+       (goto-char (1+ (s-index-of ,point-marker-char ,before)))
        (delete-char 1)
        (goto-char (scl:expression-start-pos))
-       ;; put a pipe where we are now.
-       (insert "|")
+       ;; put a marker where we are now.
+       (insert ,point-marker-char)
        ;; assert that the buffer now looks like AFTER.
        (should (equal ,after (buffer-string))))))
 
@@ -142,6 +151,10 @@
 
 (move-to-expr-start "stops at neg operator at same nesting level"
   "( foo - foo| )" -> "( foo -| foo )")
+
+(move-to-expr-start "stops at pipe operator at same nesting level"
+  "( foo | foo% )" -> "( foo |% foo )"
+  :point-marker-char "%")
 
 (move-to-expr-start "skips comma at different nesting level"
   " ( foo, foo ) |" -> "| ( foo, foo ) ")

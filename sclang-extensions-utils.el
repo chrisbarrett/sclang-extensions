@@ -192,15 +192,20 @@ Caches the result so future lookups are faster."
   "Non-nil if N is between START and END, inclusively."
   (and (>= n start) (<= n end)))
 
+(defun scl:char-before-point-looking-at? (regex)
+  "Like `thing-before-point-looking-at', but strictly for the char before point."
+  (unless (equal (point) (point-min))
+    (s-matches? regex (buffer-substring (1- (point)) (point)))))
+
 (defun scl:open-brace-position ()
   "Return point if on open braces, otherwise search backwards for open braces."
-  (if (thing-at-point-looking-at scl:open-braces)
+  (if (scl:char-before-point-looking-at? scl:open-braces)
       (point)
     (save-excursion
       (search-backward-regexp scl:open-braces nil t))))
 
 (defun scl:close-brace-position ()
-  (if (thing-at-point-looking-at scl:close-braces)
+  (if (scl:char-before-point-looking-at? scl:close-braces)
       (point)
     (save-excursion
       (search-forward-regexp scl:close-braces nil t))))
@@ -244,7 +249,7 @@ closing brace position."
 (defun scl:find-delimiter-backwards ()
   "Find the first delimiter backwards within the current context."
   (save-excursion
-    (search-backward-regexp (rx (any "," ";" "+" "*" "/" "-"))
+    (search-backward-regexp (rx (any "," ";" "+" "*" "/" "-" "|"))
                             ;; Braces define surrounding context.
                             (car (scl:surrounding-braces)) t)))
 
