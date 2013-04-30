@@ -45,7 +45,7 @@
   `(flet ((scl:blocking-eval-string (&rest _args) ,response-string))
      ,@body))
 
-(defmacro check-parses (desc _sep response-string _-> expected )
+(defmacro check-parses (desc response-string _-> expected )
   "Check that the given response from SuperCollider is parsed as expected.
 
 * DESC describes the type of response being parsed.
@@ -53,19 +53,28 @@
 * RESPONSE-STRING is the simulated response from SuperCollider.
 
 * EXPECTED is the expect output by the parser."
+  (declare (indent 1))
   `(check ,(concat "check parses " desc)
      (with-stubbed-response ,response-string
        (should (equal (scl:request ,response-string) ,expected)))))
 
-(check-parses "Arrays to lists"      : "[1, 2, 3]" -> '(1 2 3))
+(check-parses "Arrays to lists"
+  "[1, 2, 3]" -> '(1 2 3))
 
-(check-parses "Strings to strings"   : " \"foo\" " -> "foo")
+(check-parses "Strings to strings"
+ " \"foo\" " -> "foo")
 
-(check-parses "empty strings to nil" : ""          -> nil)
+(check-parses "empty strings to nil"
+ "" -> nil)
 
-(check-parses "blank strings to nil" : " "         -> nil)
+(check-parses "blank strings to nil"
+ " " -> nil)
 
-(check-parses "sane requests only"   : "ERROR: "   -> nil)
+(check-parses "Symbols to lisp symbols"
+ "\\symbol" -> 'symbol)
+
+(check-parses "sane requests only"
+ "ERROR: " -> nil)
 
 ;;; Member access
 ;;;
