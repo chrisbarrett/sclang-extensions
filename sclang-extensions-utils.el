@@ -260,6 +260,9 @@ closing brace position."
     (let ((delimiter (scl:find-delimiter-backwards))
           (context (scl:surrounding-braces pt)))
       (cond
+       ((scl:char-before-point-looking-at? (rx (any "(" "{" "[")))
+        (point))
+
        ;; Go to delimiters at the current level of nesting.
        ((and delimiter (equal (scl:surrounding-braces (1+ delimiter)) context))
         (goto-char (1+ delimiter)))

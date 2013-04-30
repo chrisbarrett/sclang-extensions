@@ -175,13 +175,22 @@
   "{ foo| }" -> "{| foo }")
 
 (move-to-expr-start "bounded at open brace"
-  "{| foo }" -> "{ |foo }")
+  "{| foo }" -> "{| foo }")
+
+(move-to-expr-start "no change when already at expression start brace"
+  "{| foo }" -> "{| foo }")
 
 (move-to-expr-start "bounded at open paren"
-  "(| foo )" -> "( |foo )")
+  "(| foo )" -> "(| foo )")
+
+(move-to-expr-start "no change when already at expression start paren"
+  "(| foo )" -> "(| foo )")
 
 (move-to-expr-start "bounded at open square"
-  "[| foo ]" -> "[ |foo ]")
+  "[| foo ]" -> "[| foo ]")
+
+(move-to-expr-start "no change when already at expression start square"
+  "[| foo ]" -> "[| foo ]")
 
 (move-to-expr-start "skips over braces"
   "foo { bar } |" -> "|foo { bar } ")
