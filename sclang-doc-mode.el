@@ -76,8 +76,8 @@
 
 (defun scl:method-desc-at-point ()
   "Return a propertized arglist of the method at point if available."
-  (-when-let* ((class (and (scl:looking-at-member-access?)
-                           (scl:class-of-thing-at-point)))
+  (-when-let* ((class (or (scl:class-of-thing-at-point)
+                          "AbstractFunction"))
                (method (scl:symbol-near-point))
                (info
                 ;; Try the class as is, as well as the meta-class.

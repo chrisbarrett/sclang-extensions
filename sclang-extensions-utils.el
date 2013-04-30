@@ -249,7 +249,7 @@ closing brace position."
 (defun scl:find-delimiter-backwards ()
   "Find the first delimiter backwards within the current context."
   (save-excursion
-    (search-backward-regexp (rx (any "," ";" "+" "*" "/" "-" "|"))
+    (search-backward-regexp (rx (any "," ";" ":" "+" "*" "/" "-" "|"))
                             ;; Braces define surrounding context.
                             (car (scl:surrounding-braces)) t)))
 
@@ -303,7 +303,9 @@ closing brace position."
        ((s-numeric? token)          "Integer")
        ;; Evaluate with SuperCollider.
        (t
-        (scl:class-of token))))))
+        (let ((response (scl:class-of token)))
+          (unless (s-starts-with? "ERROR" response)
+            response)))))))
 
 (defun scl:looking-at-member-access? ()
   "Return point if not looking at a member access."
