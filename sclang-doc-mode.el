@@ -37,15 +37,14 @@
 
 ;;; ----------------------------------------------------------------------------
 
-(cl-defun scl:class-desc-at-point (&optional (class (symbol-at-point)))
+(cl-defun scl:class-desc-at-point (&optional (class (symbol-name (symbol-at-point))))
   "Return a propertized string describing CLASS."
-  (let ((k (symbol-name class)))
-    (when (-contains? (scl:all-classes) k)
-      (concat
-       ;; Class name.
-       (propertize k 'face 'font-lock-type-face)
-       ;; Description.
-       ": " (scl:class-summary k)))))
+  (when (-contains? (scl:all-classes) class)
+    (concat
+     ;; Class name.
+     (propertize class 'face 'font-lock-type-face)
+     ;; Description.
+     ": " (scl:class-summary class))))
 
 (defun scl:propertised-arglist (arglist)
   "Process the given ARGLIST string and apply text properties."
@@ -74,25 +73,23 @@
                                   (line-beginning-position) t)
           (symbol-at-point)))))
 
-(defun scl:method-desc-at-point ()
+(cl-defun scl:method-desc-at-point
+    (&optional (class (or (scl:class-of-thing-at-point) "AbstractFunction"))
+               (method (scl:symbol-near-point)))
   "Return a propertized arglist of the method at point if available."
-  (-when-let* ((class (or (scl:class-of-thing-at-point)
-                          "AbstractFunction"))
-               (method (scl:symbol-near-point))
-               (info
-                ;; Try the class as is, as well as the meta-class.
-                (or
-                 (->> (scl:all-methods class)
-                   (-map 'scl:method-item)
-                   (-remove 'null)
-                   (--first (equal (car it) (symbol-name method))))
+  (when (and class method)
+    ;; Try the class as is, as well as the meta-class.
+    (-> (or
+         (->> (scl:all-methods class)
+           (-map 'scl:method-item)
+           (-remove 'null)
+           (--first (equal (car it) (symbol-name method))))
 
-                 (->> (scl:all-methods (concat "Meta_" class))
-                   (-map 'scl:method-item)
-                   (-remove 'null)
-                   (--first (equal (car it) (symbol-name method))))))
-               )
-    (scl:method-desc info)))
+         (->> (scl:all-methods (concat "Meta_" class))
+           (-map 'scl:method-item)
+           (-remove 'null)
+           (--first (equal (car it) (symbol-name method)))))
+      (scl:method-desc))))
 
 (defun scl:minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
