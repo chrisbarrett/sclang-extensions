@@ -227,12 +227,10 @@
 (check-infers " \\Symbol "        -> Symbol)
 (check-infers " \\Symbol.method " -> Symbol)
 
-
 ;;; Request Caching
 ;;;
 ;;; Most structured calls to SuperCollider use `scl:defun-memoized' to ensure
-;;; their results are cached. `scl:cached' is the underlying mechanism that
-;;; provides this caching.
+;;; their results are cached. `scl:cached' is the underlying mechanism for this.
 
 (check "caching macro returns uncached value"
   (let ((ht (make-hash-table)))
