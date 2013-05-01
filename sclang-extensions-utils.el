@@ -199,9 +199,7 @@ methods are actually instance methods of the meta-class."
       k method-name))))
 
 (scl:defun-memoized scl:all-classes ()
-  "Return the list of all classes known to SuperCollider.
-Caches the result so future lookups are faster."
-  ;; Request classes list from SC, then set the cache.
+  "Return the list of all classes known to SuperCollider."
   (->> "Class.allClasses.asArray"
     (scl:blocking-eval-string)
     (s-replace "class" "")
