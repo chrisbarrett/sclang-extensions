@@ -92,43 +92,74 @@ Requests that appear malformed are also ignored unless UNSAFE? is non-nil."
          (message "[scl] %s" ,result))
        ,result)))
 
+(defmacro scl:cached (key table &rest body)
+  "Return the value for KEY in hash-table TABLE.
+If KEY is not found, evaluate BODY forms and insert the result into the table."
+  (declare (indent 2))
+  (let ((-key   (cl-gensym))
+        (-table (cl-gensym)))
+    `(let ((,-key ,key)
+           (,-table  ,table))
+       (or (gethash ,-key ,-table)
+           (let ((value (progn ,@body)))
+             (puthash ,-key value ,-table)
+             value)))))
+
+(defmacro scl:defun-memoized (name arguments docstring &rest body)
+  "Define a memoized function.
+Will return the cached value for ARGUMENTS on subsequent calls."
+  (declare (indent defun) (docstring 3))
+  (let ((cache-name (intern (format "%s-cache" name))))
+    `(eval-and-compile
+
+       ;; Define backing field.
+       (defvar ,cache-name
+         (make-hash-table :test 'equal)
+         ,(format "Auto-generated cache for `%s'" name))
+
+       ;; Define function.
+       (defun ,name ,arguments
+         ,docstring
+         (scl:cached (list ,@arguments) ,cache-name
+           ,@body)))))
+
 ;;; ----------------------------------------------------------------------------
 ;;; Reflection
 
-(defun scl:methods (class)
+(scl:defun-memoized scl:methods (class)
   "Return a list of methods implemented by CLASS."
   (unless (s-blank? class)
     (scl:request "%s.methods.collect {|m| [m.name, m.argList, m.ownerClass] }"
                  class)))
 
-(defun scl:all-methods (class)
+(scl:defun-memoized scl:all-methods (class)
   "Return a list of methods implemented by CLASS and its superclasses."
   (unless (s-blank? class)
     (->> (cons class (scl:superclasses class))
       (-mapcat 'scl:methods)
       (-uniq))))
 
-(defun scl:instance-vars (class)
+(scl:defun-memoized scl:instance-vars (class)
   "Return a list of the instance variables of CLASS."
   (unless (s-blank? class)
     (scl:request "%s.instVarNames.collect(_.asString)" class)))
 
-(defun scl:class-vars (class)
+(scl:defun-memoized scl:class-vars (class)
   "Return a list of the class variables of CLASS."
   (unless (s-blank? class)
     (scl:request "%s.classVarNames.collect(_.asString)" class)))
 
-(defun scl:superclasses (class)
+(scl:defun-memoized scl:superclasses (class)
   "Return a list of superclasses for CLASS."
   (unless (s-blank? class)
     (-map 'symbol-name (scl:request "%s.superclasses" class))))
 
-(defun scl:subclasses (class)
+(scl:defun-memoized scl:subclasses (class)
   "Return the direct subclasses of CLASS."
   (unless (s-blank? class)
     (-map 'symbol-name (scl:request "%s.subclasses" class))))
 
-(defun scl:class-summary (class)
+(scl:defun-memoized scl:class-summary (class)
   "Return the summary for the given class."
   (unless (s-blank? class)
     (-when-let (response (scl:request "SCDoc.documents[\"Classes/%s\"].summary" class))
@@ -148,7 +179,7 @@ This is necessary when looking up documentation, because class
 methods are actually instance methods of the meta-class."
   (s-chop-prefix "Meta_" class))
 
-(defun scl:method-arg-info (class method-name)
+(scl:defun-memoized scl:method-arg-info (class method-name)
   "Get the name and description of each argument for a method. "
   (let ((k (scl:ensure-non-meta-class class)))
     (or
@@ -167,20 +198,15 @@ methods are actually instance methods of the meta-class."
               "[x.text, x.findChild(\\PROSE).findChild(\\TEXT).text] " "} ")
       k method-name))))
 
-(defvar scl:all-classes-cache nil)
-
-(defun scl:all-classes ()
+(scl:defun-memoized scl:all-classes ()
   "Return the list of all classes known to SuperCollider.
 Caches the result so future lookups are faster."
-  (or scl:all-classes-cache
-      ;; Request classes list from SC, then set the cache.
-      (let ((xs (->> "Class.allClasses.asArray"
-                  (scl:blocking-eval-string)
-                  (s-replace "class" "")
-                  (scl:deserialize)
-                  (-map 'symbol-name))))
-        (when xs (setq scl:all-classes-cache xs))
-        xs)))
+  ;; Request classes list from SC, then set the cache.
+  (->> "Class.allClasses.asArray"
+    (scl:blocking-eval-string)
+    (s-replace "class" "")
+    (scl:deserialize)
+    (-map 'symbol-name)))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Syntax

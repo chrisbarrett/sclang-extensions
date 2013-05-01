@@ -209,8 +209,6 @@
 ;;; Should infer the types of literals in code without communicating with
 ;;; SuperCollider.
 
-(provide 'sclang-extensions-utils-tests)
-
 (defmacro check-infers (expr _-> class)
   "Check that string EXPR is inferred be an instance of CLASS."
   `(check ,(format "check infers %s -> %s" expr class)
@@ -228,5 +226,30 @@
 (check-infers " \"Hello\".world " -> String)
 (check-infers " \\Symbol "        -> Symbol)
 (check-infers " \\Symbol.method " -> Symbol)
+
+
+;;; Request Caching
+;;;
+;;; Most structured calls to SuperCollider use `scl:defun-memoized' to ensure
+;;; their results are cached. `scl:cached' is the underlying mechanism that
+;;; provides this caching.
+
+(check "caching macro returns uncached value"
+  (let ((ht (make-hash-table)))
+    (should (scl:cached "key" ht "value"))))
+
+(check "caching macro caches result to given hash-table"
+  (let ((ht (make-hash-table)))
+    (scl:cached "key" ht "value")
+    (should (equal "value" (gethash "key" ht)))))
+
+(check "caching macro caches result to given hash-table"
+  (let ((ht (make-hash-table :test 'equal)))
+    (puthash "key" "value" ht)
+    (should (equal "value"
+                   (scl:cached "key" ht
+                     (error "Did not use cached value"))))))
+
+(provide 'sclang-extensions-utils-tests)
 
 ;;; sclang-extensions-utils-tests.el ends here
