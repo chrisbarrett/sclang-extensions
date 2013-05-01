@@ -224,6 +224,8 @@
 (check-infers "1.pow"             -> Integer)
 (check-infers " \"Hello\" "       -> String)
 (check-infers " \"Hello\".world " -> String)
+(check-infers " 'Hello' "         -> Symbol)
+(check-infers " 'Hello'.method "  -> Symbol)
 (check-infers " \\Symbol "        -> Symbol)
 (check-infers " \\Symbol.method " -> Symbol)
 
