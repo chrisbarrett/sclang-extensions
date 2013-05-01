@@ -46,23 +46,13 @@
      ;; Description.
      ": " (scl:class-summary class))))
 
-(defun scl:propertised-arglist (arglist)
-  "Process the given ARGLIST string and apply text properties."
-  (format " (%s)"
-          (->> (s-split-words arglist)
-            (--map (propertize it 'face 'font-lock-variable-name-face))
-            (s-join ", "))))
-
 (defun* scl:method-desc ((name arglist owner))
   "Return a propertized help string for the given method info."
   (concat
-   ;; Declaring class name
    (propertize owner 'face 'font-lock-type-face)
    "."
-   ;; Method name
    (propertize name 'face 'font-lock-function-name-face)
-   ;; Format the arglist. Color individual items.
-   (concat " " (scl:propertised-arglist arglist))))
+   (format " (%s)" (->> (s-split-words arglist) (s-join ", ")))))
 
 (defun scl:symbol-near-point ()
   "Like `symbol-at-point', but allows whitespace to the left of POINT."
@@ -94,7 +84,7 @@
 
 (defun scl:propertised-usage (pos-index arglist)
   "Return a propertized arglist, where the argument at point is in bold."
-  (format " (%s)"
+  (format "(%s)"
           (->> (s-split-words arglist)
             (--map-indexed
              (if (equal pos-index it-index)
