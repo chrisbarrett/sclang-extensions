@@ -95,9 +95,9 @@
 (defun scl:method-desc-before-point ()
   "When inside an arglist, return a description of the corresponding method."
   (save-excursion
-    (while (not (scl:looking-at-member-access?))
-      (forward-char -1))
-    (scl:method-desc-at-point)))
+    (-when-let (pos (car (scl:surrounding-braces)))
+      (goto-char pos)
+      (scl:method-desc-at-point))))
 
 (defun scl:minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
