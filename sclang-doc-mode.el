@@ -73,38 +73,87 @@
                                   (line-beginning-position) t)
           (symbol-at-point)))))
 
-(cl-defun scl:method-desc-at-point
-    (&optional (class (or (scl:class-of-thing-at-point) "AbstractFunction"))
-               (method (scl:symbol-near-point)))
+(cl-defun scl:method-desc-at-point (&key (formatter 'scl:method-desc))
   "Return a propertized arglist of the method at point if available."
-  (-when-let
-      (info (and class method
-                 ;; Try the class as is, as well as the meta-class.
-                 (or
-                  (->> (scl:all-methods class)
-                    (-map 'scl:method-item)
-                    (-remove 'null)
-                    (--first (equal (car it) (symbol-name method))))
+  (-when-let*
+      ((class (or (scl:class-of-thing-at-point) "AbstractFunction"))
+       (method (scl:symbol-near-point))
+       (info
+        ;; Try the class as is, as well as the meta-class.
+        (or
+         (->> (scl:all-methods class)
+           (-map 'scl:method-item)
+           (-remove 'null)
+           (--first (equal (car it) (symbol-name method))))
 
-                  (->> (scl:all-methods (concat "Meta_" class))
-                    (-map 'scl:method-item)
-                    (-remove 'null)
-                    (--first (equal (car it) (symbol-name method)))))))
-    (scl:method-desc info)))
+         (->> (scl:all-methods (concat "Meta_" class))
+           (-map 'scl:method-item)
+           (-remove 'null)
+           (--first (equal (car it) (symbol-name method)))))))
+    (funcall formatter info)))
 
-(defun scl:method-desc-before-point ()
+(defun scl:propertised-usage (pos-index arglist)
+  "Return a propertized arglist, where the argument at point is in bold."
+  (format " (%s)"
+          (->> (s-split-words arglist)
+            (--map-indexed
+             (if (equal pos-index it-index)
+                 (propertize it 'face 'font-lock-variable-name-face)
+               it))
+            (s-join ", "))))
+
+(defun scl:list-comma-indices (list-str)
+  "Return the indices of commas at the top level of LIST-STR.
+LIST-STR is a string representation of a list."
+  (with-temp-buffer
+    (insert list-str)
+    (goto-char (point-min))
+    (let ((indices nil))
+      (while (search-forward-regexp "," nil t)
+        ;; Find commas at the root level of the list.
+        (when (equal (scl:surrounding-braces)
+                     (cons (point-min) (point-max)))
+          (setq indices (cons (point) indices))))
+      (nreverse indices))))
+
+(cl-defun scl:position-in-list (&optional (pos (point)))
+  "When inside an sclang list, return the index of the element at point."
+  (-when-let* ((bounds (scl:surrounding-braces pos)))
+    (->> (buffer-substring (car bounds) (cdr bounds))
+      (scl:list-comma-indices)
+      (--map (1- (+ it (car bounds))))
+      (--take-while (<= it (point)))
+      (length))))
+
+;;; TODO: Test for keywords when highlighting arglist.
+(defun scl:method-desc-for-arglist ()
   "When inside an arglist, return a description of the corresponding method."
   (save-excursion
-    (-when-let (pos (car (scl:surrounding-braces)))
-      (goto-char pos)
-      (scl:method-desc-at-point))))
+    ;; Move off leading braces and into arglist.
+    (when (scl:char-before-point-looking-at? "(") (forward-char))
+
+    (-when-let* ((arg-index (scl:position-in-list (point)))
+                 (bounds    (scl:surrounding-braces)))
+      (goto-char (1- (car bounds)))
+      (scl:method-desc-at-point
+       :formatter
+       (lambda (info)
+         (destructuring-bind (name arglist owner) info
+           (concat
+            ;; Declaring class name
+            (propertize owner 'face 'font-lock-type-face)
+            "."
+            ;; Method name
+            (propertize name 'face 'font-lock-function-name-face)
+            ;; Format the arglist. Color individual items.
+            (concat " " (scl:propertised-usage arg-index arglist)))))))))
 
 (defun scl:minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
   ;; If any of these fail, we still want to try the others.
   (or (ignore-errors (scl:class-desc-at-point))
       (ignore-errors (scl:method-desc-at-point))
-      (ignore-errors (scl:method-desc-before-point))))
+      (ignore-errors (scl:method-desc-for-arglist))))
 
 (defvar sclang-doc-mode-hook)
 
