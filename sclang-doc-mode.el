@@ -77,26 +77,34 @@
     (&optional (class (or (scl:class-of-thing-at-point) "AbstractFunction"))
                (method (scl:symbol-near-point)))
   "Return a propertized arglist of the method at point if available."
-  (when (and class method)
-    ;; Try the class as is, as well as the meta-class.
-    (-> (or
-         (->> (scl:all-methods class)
-           (-map 'scl:method-item)
-           (-remove 'null)
-           (--first (equal (car it) (symbol-name method))))
+  (-when-let
+      (info (and class method
+                 ;; Try the class as is, as well as the meta-class.
+                 (or
+                  (->> (scl:all-methods class)
+                    (-map 'scl:method-item)
+                    (-remove 'null)
+                    (--first (equal (car it) (symbol-name method))))
 
-         (->> (scl:all-methods (concat "Meta_" class))
-           (-map 'scl:method-item)
-           (-remove 'null)
-           (--first (equal (car it) (symbol-name method)))))
-      (scl:method-desc))))
+                  (->> (scl:all-methods (concat "Meta_" class))
+                    (-map 'scl:method-item)
+                    (-remove 'null)
+                    (--first (equal (car it) (symbol-name method)))))))
+    (scl:method-desc info)))
+
+(defun scl:method-desc-before-point ()
+  "When inside an arglist, return a description of the corresponding method."
+  (save-excursion
+    (while (not (scl:looking-at-member-access?))
+      (forward-char -1))
+    (scl:method-desc-at-point)))
 
 (defun scl:minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
-  ;; We don't want errors bubbling up to the user from eldoc.
-  (ignore-errors
-    (or (scl:class-desc-at-point)
-        (scl:method-desc-at-point))))
+  ;; If any of these fail, we still want to try the others.
+  (or (ignore-errors (scl:class-desc-at-point))
+      (ignore-errors (scl:method-desc-at-point))
+      (ignore-errors (scl:method-desc-before-point))))
 
 (defvar sclang-doc-mode-hook)
 
