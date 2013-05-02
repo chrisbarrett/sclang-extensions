@@ -257,6 +257,12 @@
                    (scl:cached "key" ht
                      (error "Did not use cached value"))))))
 
+;;; Formatting functions
+
+(check "splits arglists into words"
+  (should (equal '("the" "quick" "brownFox")
+                 (scl:arguments "(the quick brownFox)"))))
+
 (provide 'sclang-extensions-utils-tests)
 
 ;;; sclang-extensions-utils-tests.el ends here

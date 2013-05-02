@@ -52,7 +52,7 @@
    (propertize owner 'face 'font-lock-type-face)
    "."
    (propertize name 'face 'font-lock-function-name-face)
-   (format " (%s)" (->> (s-split-words arglist) (s-join ", ")))))
+   (->> (scl:arguments arglist) (s-join ", ") (format " (%s)"))))
 
 (defun scl:symbol-near-point ()
   "Like `symbol-at-point', but allows whitespace to the left of POINT."
@@ -91,7 +91,7 @@
 * POS-INDEX is the index of the element at point.
 
 * CURRENT-KW is the keyword argument at point, if any."
-  (->> (s-split-words arglist)
+  (->> (scl:arguments arglist)
     (--map-indexed
      (cond
       ;; Propertise keyword argument.
@@ -141,6 +141,18 @@ LIST-STR is a string representation of a list."
           (1+ (point))
         (scl:argument-start-position context)))))
 
+(defun scl:extract-keyword-at-point ()
+  "Extract the entire keyword at point."
+  ;; Move to start of word.
+  (save-excursion
+    (when (symbol-at-point) (backward-sexp))
+    ;; Find the keyword at point. Return it without the colon.
+    (-when-let (colon (save-excursion
+                        (search-forward ":" (line-end-position) t)))
+      (->> (buffer-substring-no-properties (point) colon)
+        (s-chop-suffix ":" )
+        (read)))))
+
 (defun scl:method-keyword-at-point ()
   "When looking at a keyword argument in a method call, return that keyword."
   (save-excursion
@@ -149,7 +161,7 @@ LIST-STR is a string representation of a list."
       (goto-char pos))
     (search-forward-regexp (rx (not (any "\n" space))))
     ;; Test whether the current symbol is a keyword.
-    (-when-let* ((kw (symbol-at-point))
+    (-when-let* ((kw (scl:extract-keyword-at-point))
                  (method (scl:method-for-arglist-at-point)))
       ;; Return the KW if it is a parameter name for the method at point.
       (destructuring-bind (_name arglist _owner) method

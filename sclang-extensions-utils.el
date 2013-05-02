@@ -342,6 +342,14 @@ closing brace position."
   "Return point if not looking at a member access."
   (s-contains? "." (buffer-substring (scl:expression-start-pos) (point))))
 
+;;; ----------------------------------------------------------------------------
+;;; Formatting functions
+
+(defun scl:arguments (arglist)
+  "Split the given arglist into a list of its arguments."
+  (->> arglist (s-chop-prefix "(") (s-chop-suffix ")") (s-split (rx space))))
+
+
 (provide 'sclang-extensions-utils)
 
 ;;; NB: We need to use `flet', an obsolete macro. Suppress the usage warning.

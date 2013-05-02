@@ -84,7 +84,7 @@
    (format "%s.%s\n\n" owner name)
    ;; Display arglist.
    (unless (s-blank? arglist)
-     (->> (s-split-words arglist) (s-join ", ") (format "(%s)")))
+     (->> (scl:arguments arglist) (s-join ", ") (format "(%s)")))
    ;; Display arglist details.
    (scl:method-bullets (scl:method-arg-info owner name))))
 
