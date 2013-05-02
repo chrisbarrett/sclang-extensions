@@ -330,6 +330,7 @@ closing brace position."
        ((s-ends-with? "\"" token)   "String")
        ((s-starts-with? "\\" token) "Symbol")
        ((s-starts-with? "'" token)  "Symbol")
+       ((s-starts-with? "~" token)  "Buffer")
        ((s-numeric? token)          "Integer")
        ;; Evaluate with SuperCollider.
        (t

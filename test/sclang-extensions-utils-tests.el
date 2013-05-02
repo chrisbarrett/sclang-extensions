@@ -234,6 +234,7 @@
 (check-infers " 'Hello'.method "  -> Symbol)
 (check-infers " \\Symbol "        -> Symbol)
 (check-infers " \\Symbol.method " -> Symbol)
+(check-infers "~buf"              -> Buffer)
 
 ;;; Request Caching
 ;;;
