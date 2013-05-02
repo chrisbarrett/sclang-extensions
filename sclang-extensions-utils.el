@@ -284,7 +284,11 @@ closing brace position."
     (let ((delimiter (scl:find-delimiter-backwards))
           (context (scl:surrounding-braces pt)))
       (cond
-       ((scl:char-before-point-looking-at? (rx (any "(" "{" "[")))
+       ((scl:char-before-point-looking-at? scl:close-braces)
+        (backward-sexp)
+        (scl:expression-start-pos))
+
+       ((scl:char-before-point-looking-at? scl:open-braces)
         (point))
 
        ;; Go to delimiters at the current level of nesting.
@@ -335,7 +339,6 @@ closing brace position."
 (defun scl:looking-at-member-access? ()
   "Return point if not looking at a member access."
   (s-contains? "." (buffer-substring (scl:expression-start-pos) (point))))
-
 
 (provide 'sclang-extensions-utils)
 
