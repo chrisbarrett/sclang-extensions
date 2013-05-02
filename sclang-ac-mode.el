@@ -32,7 +32,6 @@
 (require 'cl-lib)
 (require 'auto-complete)
 (require 'sclang-extensions-utils)
-(autoload 'scl:propertised-arglist "sclang-doc-mode")
 
 ;;; ----------------------------------------------------------------------------
 ;;; Completion sources.
@@ -85,7 +84,7 @@
    (format "%s.%s\n\n" owner name)
    ;; Display arglist.
    (unless (s-blank? arglist)
-     (scl:propertised-arglist arglist))
+     (->> (s-split-words arglist) (s-join ", ") (format "(%s)")))
    ;; Display arglist details.
    (scl:method-bullets (scl:method-arg-info owner name))))
 
