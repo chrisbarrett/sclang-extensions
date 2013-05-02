@@ -41,6 +41,7 @@
 (require 'sclang-doc-mode)
 (require 'sclang-post-mode)
 (require 'dash)
+(autoload 'sclang-eval-region "sclang-interp")
 
 (defgroup sclang-extensions nil
   "Extensions to the SuperCollider (sclang) Emacs mode."
@@ -85,10 +86,23 @@ Return the position of the first non-whitespace char."
     (goto-char pos)))
 
 ;;;###autoload
+(defun sclang-eval-dwim ()
+  "Perform a context-sensitive evaluation.
+
+* Evaluate region if active.
+
+* Evaluate last expression if there is no region."
+  (interactive)
+  (if (region-active-p)
+      (sclang-eval-region)
+    (sclang-eval-last-expression)))
+
+;;;###autoload
 (defvar sclang-extensions-mode-map
   (let ((km (make-keymap)))
     (define-key km (kbd "M-a") 'sclang-expression-start)
     (define-key km (kbd "C-x C-e") 'sclang-eval-last-expression)
+    (define-key km (kbd "C-c C-c") 'sclang-eval-dwim)
     km))
 
 (defvar sclang-extensions-mode-hook nil
