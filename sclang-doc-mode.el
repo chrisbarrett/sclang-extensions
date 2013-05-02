@@ -63,34 +63,48 @@
                                   (line-beginning-position) t)
           (symbol-at-point)))))
 
-(cl-defun scl:method-desc-at-point (&key (formatter 'scl:method-desc))
+(defun scl:method-at-point ()
+  "Return a method info for the method at point."
+  (-when-let* ((class (or (scl:class-of-thing-at-point) "AbstractFunction"))
+               (method (scl:symbol-near-point)))
+    ;; Try the class as is, as well as the meta-class.
+    (or
+     (->> (scl:all-methods class)
+       (-map 'scl:method-item)
+       (-remove 'null)
+       (--first (equal (car it) (symbol-name method))))
+
+     (->> (scl:all-methods (concat "Meta_" class))
+       (-map 'scl:method-item)
+       (-remove 'null)
+       (--first (equal (car it) (symbol-name method)))))))
+
+(cl-defun scl:method-desc-at-point ()
   "Return a propertized arglist of the method at point if available."
-  (-when-let*
-      ((class (or (scl:class-of-thing-at-point) "AbstractFunction"))
-       (method (scl:symbol-near-point))
-       (info
-        ;; Try the class as is, as well as the meta-class.
-        (or
-         (->> (scl:all-methods class)
-           (-map 'scl:method-item)
-           (-remove 'null)
-           (--first (equal (car it) (symbol-name method))))
+  (scl:method-desc (scl:method-at-point)))
 
-         (->> (scl:all-methods (concat "Meta_" class))
-           (-map 'scl:method-item)
-           (-remove 'null)
-           (--first (equal (car it) (symbol-name method)))))))
-    (funcall formatter info)))
+(defun scl:propertised-usage (arglist pos-index current-kw)
+  "Return a propertized arglist, where the argument at point is in bold.
 
-(defun scl:propertised-usage (pos-index arglist)
-  "Return a propertized arglist, where the argument at point is in bold."
-  (format "(%s)"
-          (->> (s-split-words arglist)
-            (--map-indexed
-             (if (equal pos-index it-index)
-                 (propertize it 'face 'font-lock-variable-name-face)
-               it))
-            (s-join ", "))))
+* ARGLIST is the argument list to format. It should be a string.
+
+* POS-INDEX is the index of the element at point.
+
+* CURRENT-KW is the keyword argument at point, if any."
+  (->> (s-split-words arglist)
+    (--map-indexed
+     (cond
+      ;; Propertise keyword argument.
+      ((and current-kw (equal current-kw (read it)))
+       (propertize it 'face 'font-lock-variable-name-face))
+      ;; Propertise positional argument.
+      ((and (not current-kw) (equal pos-index it-index))
+       (propertize it 'face 'font-lock-variable-name-face))
+      ;; Return unchanged.
+      (t it))
+     )
+    (s-join ", ")
+    (format "(%s)")))
 
 (defun scl:list-comma-indices (list-str)
   "Return the indices of commas at the top level of LIST-STR.
@@ -115,28 +129,60 @@ LIST-STR is a string representation of a list."
       (--take-while (<= it (point)))
       (length))))
 
-;;; TODO: Test for keywords when highlighting arglist.
-(defun scl:method-desc-for-arglist ()
-  "When inside an arglist, return a description of the corresponding method."
+(cl-defun scl:argument-start-position
+    (&optional (context (scl:surrounding-braces)))
+  "Find the starting position of the current argument to the method call at point."
+  (save-excursion
+    (-when-let (pos (scl:expression-start-pos)))
+    (when (search-backward-regexp
+           (rx "," (* (or "\n" space)) (group nonl))
+           (car (scl:surrounding-braces)) t)
+      (if (equal context (scl:surrounding-braces))
+          (1+ (point))
+        (scl:argument-start-position context)))))
+
+(defun scl:method-keyword-at-point ()
+  "When looking at a keyword argument in a method call, return that keyword."
+  (save-excursion
+    ;; Find the start of the argument expression.
+    (-when-let (pos (scl:argument-start-position))
+      (goto-char pos))
+    (search-forward-regexp (rx (not (any "\n" space))))
+    ;; Test whether the current symbol is a keyword.
+    (-when-let* ((kw (symbol-at-point))
+                 (method (scl:method-for-arglist-at-point)))
+      ;; Return the KW if it is a parameter name for the method at point.
+      (destructuring-bind (_name arglist _owner) method
+        (cl-find kw (read arglist))))))
+
+(defun scl:method-for-arglist-at-point ()
+  "If point is inside a method call arglist, return the method being called."
   (save-excursion
     ;; Move off leading braces and into arglist.
     (when (scl:char-before-point-looking-at? "(") (forward-char))
 
     (-when-let* ((arg-index (scl:position-in-list (point)))
-                 (bounds    (scl:surrounding-braces)))
+                 (bounds (scl:surrounding-braces)))
       (goto-char (1- (car bounds)))
-      (scl:method-desc-at-point
-       :formatter
-       (lambda (info)
-         (destructuring-bind (name arglist owner) info
-           (concat
-            ;; Declaring class name
-            (propertize owner 'face 'font-lock-type-face)
-            "."
-            ;; Method name
-            (propertize name 'face 'font-lock-function-name-face)
-            ;; Format the arglist. Color individual items.
-            (concat " " (scl:propertised-usage arg-index arglist)))))))))
+      (scl:method-at-point))))
+
+(defun scl:method-desc-for-arglist ()
+  "When inside an arglist, return a description of the corresponding method."
+  (save-excursion
+    (when (scl:char-before-point-looking-at? "(") (forward-char))
+    (-when-let (info (scl:method-for-arglist-at-point))
+      (destructuring-bind (name arglist owner) info
+        (concat
+         ;; Declaring class name
+         (propertize owner 'face 'font-lock-type-face)
+         "."
+         ;; Method name
+         (propertize name 'face 'font-lock-function-name-face)
+         ;; Format the arglist. Color individual items.
+         (concat " " (scl:propertised-usage
+                      arglist
+                      (scl:position-in-list (point))
+                      (scl:method-keyword-at-point))))))))
 
 (defun scl:minibuffer-doc ()
   "Display the appropriate documentation for the symbol at point."
