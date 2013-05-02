@@ -286,6 +286,7 @@ closing brace position."
       (cond
        ((scl:char-before-point-looking-at? scl:close-braces)
         (backward-sexp)
+        (unless (bobp) (forward-char -1))
         (scl:expression-start-pos))
 
        ((scl:char-before-point-looking-at? scl:open-braces)

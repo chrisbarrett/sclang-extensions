@@ -192,8 +192,11 @@
 (move-to-expr-start "no change when already at expression start square"
   "[| foo ]" -> "[| foo ]")
 
-(move-to-expr-start "skips over braces"
+(move-to-expr-start "skips over braces when after whitespace"
   "foo { bar } |" -> "|foo { bar } ")
+
+(move-to-expr-start "skips over braces when after brace"
+  "foo { bar }|" -> "|foo { bar }")
 
 (move-to-expr-start "skips over lists"
   " [1, 2, 3] |" -> "| [1, 2, 3] ")
