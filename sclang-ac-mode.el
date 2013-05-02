@@ -206,16 +206,9 @@
   (let ((ac-expand-on-auto-complete t))
     (auto-complete '(ac-source-sclang-ivars ac-source-sclang-methods))))
 
-;;;###autoload
-(defun sclang-expression-start ()
-  "Move to the start of the sclang expression before point."
-  (interactive)
-  (goto-char (scl:expression-start-pos)))
-
 (defvar sclang-ac-mode-map
   (let ((map (make-keymap)))
     (define-key map (kbd ".") 'sclang-electric-dot)
-    (define-key map (kbd "M-a") 'sclang-expression-start)
     map)
   "Keymap for sclang-ac-mode.
 \\{sclang-ac-mode-map}")

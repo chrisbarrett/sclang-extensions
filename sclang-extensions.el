@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 2.2.7
+;; Version: 2.2.8
 ;; Package-Requires: ((auto-complete "1.4.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
@@ -52,7 +52,31 @@ The Post buffer becomes much less useful when you use `sclang-post-mode'."
   :group 'sclang-extensions
   :type 'boolean)
 
-(defvar sclang-extensions-mode-hook)
+;;; ----------------------------------------------------------------------------
+
+;;;###autoload
+(defun sclang-eval-last-expression ()
+  "Evaluate the sclang expression before point."
+  (interactive)
+  (->> (buffer-substring-no-properties (scl:expression-start-pos) (point))
+    (scl:blocking-eval-string)
+    (scl:print-post-message)))
+
+;;;###autoload
+(defun sclang-expression-start ()
+  "Move to the start of the sclang expression before point."
+  (interactive)
+  (goto-char (scl:expression-start-pos)))
+
+;;;###autoload
+(defvar sclang-extensions-mode-map
+  (let ((km (make-keymap)))
+    (define-key km (kbd "M-a") 'sclang-expression-start)
+    (define-key km (kbd "C-x C-e") 'sclang-eval-last-expression)
+    km))
+
+(defvar sclang-extensions-mode-hook nil
+  "Hook run after `sclang-extensions-mode' is initialized.")
 
 (defun scl:bury-post-buffer ()
   "Hide the SuperCollider Post buffer."
@@ -64,7 +88,7 @@ The Post buffer becomes much less useful when you use `sclang-post-mode'."
 ;;;###autoload
 (define-minor-mode sclang-extensions-mode
   "Enable all extensions to the sclang Emacs mode."
-  nil " scl" nil
+  nil " scl" sclang-extensions-mode-map
   (cond
 
    ;; Enable mode.
