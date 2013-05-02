@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 2.2.8
+;; Version: 2.2.9
 ;; Package-Requires: ((auto-complete "1.4.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
@@ -54,11 +54,26 @@ The Post buffer becomes much less useful when you use `sclang-post-mode'."
 
 ;;; ----------------------------------------------------------------------------
 
+(defun scl:visual-expression-start ()
+  "Return the beginning of the current expression.
+Ignore trailing semicolons and whitespace.
+Return the position of the first non-whitespace char."
+  (save-excursion
+    (while (and (or (scl:char-before-point-looking-at? (rx (any space "\n" ";"))))
+                (not (bobp)))
+      (forward-char -1))
+    (-when-let (pos (scl:expression-start-pos))
+      (goto-char pos)
+      (when (search-forward-regexp (rx (not (any space "\n"))) nil t)
+        (unless (bobp)
+          (forward-char -1))))
+    (point)))
+
 ;;;###autoload
 (defun sclang-eval-last-expression ()
   "Evaluate the sclang expression before point."
   (interactive)
-  (->> (buffer-substring-no-properties (scl:expression-start-pos) (point))
+  (->> (buffer-substring-no-properties (scl:visual-expression-start) (point))
     (scl:blocking-eval-string)
     (scl:print-post-message)))
 
@@ -66,7 +81,8 @@ The Post buffer becomes much less useful when you use `sclang-post-mode'."
 (defun sclang-expression-start ()
   "Move to the start of the sclang expression before point."
   (interactive)
-  (goto-char (scl:expression-start-pos)))
+  (-when-let (pos (scl:visual-expression-start))
+    (goto-char pos)))
 
 ;;;###autoload
 (defvar sclang-extensions-mode-map
