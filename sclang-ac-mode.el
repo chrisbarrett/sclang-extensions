@@ -136,18 +136,9 @@
     (reverse)
     (--first (scl:class-defines? it name))))
 
-(cl-defun scl:selected-var-doc
-    (var-name &optional (class scl:last-class))
+(cl-defun scl:selected-var-doc (var-name &optional (class scl:last-class))
   "Get the documentation for VAR-NAME."
-  (let ((qual-sym (format "%s.%s" (scl:find-declaring-class class var-name) var-name)))
-    (s-concat
-     ;; CLASS.NAME
-     qual-sym
-     ;; Show value if possible.
-     (->> (scl:request "%s.%s" (scl:ensure-non-meta-class class) var-name)
-       (prin1-to-string)
-       (scl:ellipsize)
-       (concat "\n\nvalue: ")))))
+  (format "%s.%s" (scl:find-declaring-class class var-name) var-name))
 
 (ac-define-source sclang-classes
   '((candidates . (scl:logged
