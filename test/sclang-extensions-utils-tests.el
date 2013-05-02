@@ -228,6 +228,8 @@
 (check-infers "[1,2,3].collect"   -> Array)
 (check-infers "1"                 -> Integer)
 (check-infers "1.pow"             -> Integer)
+(check-infers "1.0"               -> Float)
+(check-infers "1.0.pow"           -> Float)
 (check-infers " \"Hello\" "       -> String)
 (check-infers " \"Hello\".world " -> String)
 (check-infers " 'Hello' "         -> Symbol)

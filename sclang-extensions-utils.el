@@ -317,11 +317,15 @@ closing brace position."
   "Return the class of the sclang expression at point."
   (scl:logged
     ;; Find the first sclang token in the expression.
-    (let ((token (-> (buffer-substring-no-properties (scl:expression-start-pos) (point))
-                   (s-trim)
-                   (split-string (rx (any ".")))
-                   (car)
-                   (s-trim))))
+    (let* ((words
+            (-map 's-trim
+                  (-> (buffer-substring-no-properties
+                       (scl:expression-start-pos)
+                       (point))
+                    (s-trim)
+                    (split-string (rx (any "."))))))
+           (token (nth 0 words))
+           (next  (nth 1 words)))
       (cond
        ;; Return immediately for literals.
        ((s-starts-with? "[" token)  "Array")
@@ -331,6 +335,9 @@ closing brace position."
        ((s-starts-with? "\\" token) "Symbol")
        ((s-starts-with? "'" token)  "Symbol")
        ((s-starts-with? "~" token)  "Buffer")
+       ((and (s-numeric? token)
+             next
+             (s-numeric? next)      "Float"))
        ((s-numeric? token)          "Integer")
        ;; Evaluate with SuperCollider.
        (t
