@@ -44,6 +44,8 @@
 (autoload 'sclang-eval-region "sclang-interp")
 (autoload 'sclang-eval-line "sclang-interp")
 
+;;; ----------------------------------------------------------------------------
+
 (defgroup sclang-extensions nil
   "Extensions to the SuperCollider (sclang) Emacs mode."
   :group 'languages)
@@ -53,6 +55,11 @@
 The Post buffer becomes much less useful when you use `sclang-post-mode'."
   :group 'sclang-extensions
   :type 'boolean)
+
+(defcustom sclang-extensions-mode-hook nil
+  "Hook run after `sclang-extensions-mode' is initialized."
+  :group 'sclang-extensions
+  :type 'hook)
 
 ;;; ----------------------------------------------------------------------------
 
@@ -128,9 +135,6 @@ Return the position of the first non-whitespace char."
     (define-key km (kbd "C-x C-e") 'sclang-eval-last-expression)
     (define-key km (kbd "C-c C-c") 'sclang-eval-dwim)
     km))
-
-(defvar sclang-extensions-mode-hook nil
-  "Hook run after `sclang-extensions-mode' is initialized.")
 
 (defun scl:bury-post-buffer ()
   "Hide the SuperCollider Post buffer."

@@ -37,6 +37,13 @@
 
 ;;; ----------------------------------------------------------------------------
 
+(defcustom sclang-doc-mode-hook nil
+  "Hook run when `sclang-doc-mode' has initialized."
+  :group 'sclang-extensions
+  :type 'hook)
+
+;;; ----------------------------------------------------------------------------
+
 (cl-defun scl:class-desc-at-point (&optional (class (symbol-name (symbol-at-point))))
   "Return a propertized string describing CLASS."
   (when (-contains? (scl:all-classes) class)
@@ -202,8 +209,6 @@ LIST-STR is a string representation of a list."
   (or (ignore-errors (scl:class-desc-at-point))
       (ignore-errors (scl:method-desc-at-point))
       (ignore-errors (scl:method-desc-for-arglist))))
-
-(defvar sclang-doc-mode-hook)
 
 ;;;###autoload
 (define-minor-mode sclang-doc-mode

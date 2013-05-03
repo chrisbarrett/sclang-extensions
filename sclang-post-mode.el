@@ -25,19 +25,25 @@
 
 ;;; Code:
 
-(autoload 'sclang-process-filter "sclang-interp")
 (require 's)
 (require 'dash)
+(autoload 'sclang-process-filter "sclang-interp")
+
+;;; ----------------------------------------------------------------------------
 
 (defcustom sclang-post-message-max-lines 1
   "The maximum number of lines from the Post buffer to show in the minibuffer."
   :group 'sclang-extensions
   :type 'integer)
 
-(defvar sclang-post-buffer-updated-hook '(scl:print-post-message)
+(defcustom sclang-post-buffer-updated-hook '(scl:print-post-message)
   "Hook that is run whenever the SuperCollider Post buffer is updated.
 Hook functions should take a single argument, representing the
-string that was written to the Post buffer.")
+string that was written to the Post buffer."
+  :group 'sclang-extensions
+  :type 'hook)
+
+;;; ----------------------------------------------------------------------------
 
 (defun scl:print-post-message (str)
   "Print STR to the minibuffer if it is not blank."

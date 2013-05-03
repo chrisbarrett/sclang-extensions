@@ -34,6 +34,13 @@
 (require 'sclang-extensions-utils)
 
 ;;; ----------------------------------------------------------------------------
+
+(defcustom sclang-ac-mode-hook nil
+  "Hook run when `sclang-ac-mode' has started."
+  :group 'sclang-extensions
+  :type 'hook)
+
+;;; ----------------------------------------------------------------------------
 ;;; Completion sources.
 ;;
 ;; Completion sources that require a reference to a class (i.e. methods,
@@ -203,8 +210,6 @@
     map)
   "Keymap for sclang-ac-mode.
 \\{sclang-ac-mode-map}")
-
-(defvar sclang-ac-mode-hook)
 
 ;;;###autoload
 (define-minor-mode sclang-ac-mode

@@ -32,6 +32,8 @@
 (autoload 'sclang-eval-string "sclang-help")
 (autoload 'thing-at-point-looking-at "thingatpt")
 
+;;; ----------------------------------------------------------------------------
+
 (defcustom sclang-ac-verbose nil
   "If non-nil, print extra debugging info to the messages buffer."
   :group 'sclang-extensions)
@@ -108,7 +110,7 @@ If KEY is not found, evaluate BODY forms and insert the result into the table."
 (defmacro scl:defun-memoized (name arguments docstring &rest body)
   "Define a memoized function.
 Will return the cached value for ARGUMENTS on subsequent calls."
-  (declare (indent defun) (docstring 3))
+  (declare (indent defun) (doc-string 3))
   (let ((cache-name (intern (format "%s-cache" name))))
     `(eval-and-compile
 
