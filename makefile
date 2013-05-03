@@ -9,7 +9,11 @@ VERSION    = $(shell carton version)
 PACKAGE_DIR = sclang-extensions-$(VERSION)
 PACKAGE_TAR = $(abspath sclang-extensions-$(VERSION).tar)
 MANIFEST    = $(abspath sclang-extensions-pkg.el)
-SRCS        = $(filter-out $(wildcard *-pkg.el), $(wildcard *.el))
+
+SRCS        = $(filter-out $(wildcard flycheck-*),\
+	      $(filter-out $(wildcard *-pkg.el),\
+	      $(wildcard *.el)))
+
 PACKAGE_INCLUDES = $(SRCS) $(MANIFEST)
 
 LOAD_EL     = $(patsubst %,-l %, $(SRCS))
