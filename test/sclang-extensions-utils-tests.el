@@ -152,6 +152,9 @@
 (move-to-expr-start "stops at equals at same nesting level"
   "( foo = foo| )" -> "( foo =| foo )")
 
+(move-to-expr-start "stops at mod operator at same nesting level"
+  "( foo % foo| )" -> "( foo %| foo )")
+
 (move-to-expr-start "stops at plus operator at same nesting level"
   "( foo + foo| )" -> "( foo +| foo )")
 
