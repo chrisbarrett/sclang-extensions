@@ -188,6 +188,14 @@
     (limit      . nil)
     (requires   . -1)))
 
+(ac-define-source sclang-keyword-args
+  '((candidates . (scl:logged
+                    (ignore-errors
+                      (-when-let (info (scl:method-for-arglist-at-point))
+                        (destructuring-bind (_name arglist _owner) info
+                          (--map (concat it ":") (scl:arguments arglist)))))))
+    (symbol     . "k")))
+
 ;;; ----------------------------------------------------------------------------
 
 ;;;###autoload
@@ -221,6 +229,7 @@
                        ac-source-sclang-ivars
                        ac-source-sclang-classes
                        ac-source-sclang-methods
+                       ac-source-sclang-keyword-args
                        ac-source-sclang-toplevel-functions))
     (auto-complete-mode +1)
     (run-hooks 'sclang-ac-mode-hook)))
