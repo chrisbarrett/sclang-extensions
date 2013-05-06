@@ -93,40 +93,17 @@ Return the position of the first non-whitespace char."
   (-when-let (pos (scl:visual-expression-start))
     (goto-char pos)))
 
-(defun scl:same-line? (start end)
-  "Non-nil if START and END are both points on the same line in the current buffer."
-  (equal (line-number-at-pos start) (line-number-at-pos end)))
-
-(cl-defun scl:cons->list ((x . y))
-  "Turn the given cons cell into a proper list."
-  (list x y))
-
-(cl-defun scl:outermost-surrounding-braces
-    (&optional (ctx (scl:surrounding-braces)))
-  "Return the positions of the outermost braces surrounding"
-  (scl:cons->list
-   (or (ignore-errors (scl:surrounding-braces (car ctx)))
-       ctx)))
-
-(defun scl:one-liner-expression? ()
-  "Non-nil if the top-level expression at point is a one-liner."
-  (ignore-errors (apply 'scl:same-line? (scl:outermost-surrounding-braces))))
-
 ;;;###autoload
 (defun sclang-eval-dwim ()
   "Perform a context-sensitive evaluation action.
-
-* Evaluate region if active.
-
-* Evaluate the current line if it's a one-liner.
-
-* Evaluate preceding expression if there is no region."
+Either eval the current region or the top level grouping at point."
   (interactive)
   (message nil)
-  (cond
-   ((region-active-p)           (sclang-eval-region))
-   ((scl:one-liner-expression?) (sclang-eval-line))
-   (t                           (sclang-eval-last-expression))))
+  (if (region-active-p)
+      (sclang-eval-region)
+    (save-excursion
+      (mark-defun)
+      (sclang-eval-region))))
 
 ;;;###autoload
 (defvar sclang-extensions-mode-map
