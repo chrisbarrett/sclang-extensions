@@ -147,11 +147,18 @@
   "Get the documentation for VAR-NAME."
   (format "%s.%s" (scl:find-declaring-class class var-name) var-name))
 
+(defun scl:blank-line? ()
+  "Non-nil if the current line is only spaces or tabs."
+  (s-matches? (rx bol (* (any space "\t")) eol)
+              (buffer-substring (line-beginning-position)
+                                (line-end-position))))
+
 (ac-define-source sclang-classes
   '((candidates . (scl:logged
-                    (unless (or (equal sclang-post-buffer (buffer-name))
-                                (scl:looking-at-member-access?))
-                      (scl:all-classes))))
+                    (unless (equal sclang-post-buffer (buffer-name))
+                      (when (or (not (scl:looking-at-member-access?))
+                                (scl:blank-line?))
+                        (scl:all-classes)))))
     (document   . scl:class-documentation)
     (symbol     . "s")
     (limit      . nil)
