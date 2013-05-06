@@ -100,7 +100,8 @@ Either eval the current region or the top level grouping at point."
   (interactive)
   (message nil)
   (if (region-active-p)
-      (sclang-eval-region)
+      (progn (sclang-eval-region)
+             (deactivate-mark))
     (save-excursion
       (mark-defun)
       (sclang-eval-region))))
