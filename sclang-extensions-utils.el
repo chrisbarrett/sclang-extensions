@@ -330,6 +330,7 @@ closing brace position."
            (next  (nth 1 words)))
       (cond
        ;; Return immediately for literals.
+       ((null token)                nil)
        ((s-starts-with? "[" token)  "Array")
        ((s-ends-with? "]" token)    "Array")
        ((s-starts-with? "\"" token) "String")
@@ -343,7 +344,7 @@ closing brace position."
        ((s-numeric? token)          "Integer")
        ;; Evaluate with SuperCollider.
        (t
-        (let ((response (scl:class-of token)))
+        (-when-let (response (scl:class-of token))
           (unless (s-starts-with? "ERROR" response)
             response)))))))
 
