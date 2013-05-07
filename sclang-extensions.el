@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 2.2.12
+;; Version: 2.2.13
 ;; Package-Requires: ((auto-complete "1.4.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
@@ -42,6 +42,8 @@
 (require 'sclang-post-mode)
 (require 'dash)
 (autoload 'sclang-eval-region "sclang-interp")
+(autoload 'sclang-start "sclang-interp")
+(autoload 'sclang-get-process "sclang-interp")
 (autoload 'sclang-eval-line "sclang-interp")
 
 ;;; ----------------------------------------------------------------------------
@@ -60,6 +62,31 @@ The Post buffer becomes much less useful when you use `sclang-post-mode'."
   "Hook run after `sclang-extensions-mode' is initialized."
   :group 'sclang-extensions
   :type 'hook)
+
+(defcustom sclang-run-supercollider-if-not-active? t
+  "If non-nil, start a SuperCollider process when the mode is activated."
+  :group 'sclang-extensions
+  :type 'boolean)
+
+;;; The SuperCollider distribution has changed the location of support files on
+;;; OSX since the Emacs mode was released. We set these to sane values so you
+;;; have any hope of getting sclang working!
+
+(defcustom sclang-osx-app-path "/Applications/SuperCollider/SuperCollider.app"
+  "The location of the SuperCollider app on OS X.
+Used to set the location of documentation paths."
+  :group 'sclang-extensions)
+
+(defcustom sclang-osx-sc-app-support
+  (expand-file-name "~/Library/Application Support/SuperCollider")
+  "The location of the SuperCollider app support folder on OS X."
+  :group 'sclang-extensions)
+
+(defcustom sclang-reassign-osx-paths? t
+  "If non-nil, override the default sclang executable and library paths.
+This is necessary because all the supporting files have been moved into the app bundle."
+  :group 'sclang-extensions
+  :type 'boolean)
 
 ;;; ----------------------------------------------------------------------------
 
@@ -109,17 +136,44 @@ Either eval the current region or the top level grouping at point."
 ;;;###autoload
 (defvar sclang-extensions-mode-map
   (let ((km (make-keymap)))
-    (define-key km (kbd "M-a") 'sclang-expression-start)
+    (define-key km (kbd "M-a")     'sclang-expression-start)
     (define-key km (kbd "C-x C-e") 'sclang-eval-last-expression)
     (define-key km (kbd "C-c C-c") 'sclang-eval-dwim)
+    (define-key km (kbd "C-c C-z") 'sclang-switch-between-src-and-post)
+    (define-key km (kbd "M-q")     'indent-buffer)
+    (define-key km (kbd "s-.")     'sclang-main-stop)
+    (define-key km (kbd "C-c C-l") 'sclang-eval-document)
     km))
+
+;;;###autoload
+(defun sclang-switch-between-src-and-post ()
+  "Switch between the Post buffer and the last sclang buffer."
+  (interactive)
+  (if (equal (buffer-name) sclang-post-buffer)
+      (->> (cdr (buffer-list))
+        (--first (with-current-buffer it (equal major-mode 'sclang-mode)))
+        (switch-to-buffer))
+    (switch-to-buffer sclang-post-buffer)))
 
 (defun scl:bury-post-buffer ()
   "Hide the SuperCollider Post buffer."
-  (when (boundp 'sclang-post-buffer)
-    (--each (--filter (equal sclang-post-buffer (buffer-name (window-buffer it)))
-                      (window-list))
-      (delete-window it))))
+  (--each (--filter (equal sclang-post-buffer (buffer-name (window-buffer it)))
+                    (window-list))
+    (delete-window it)))
+
+(defun sclang-set-osx-paths ()
+  "Set sclang paths to modern values on OS X."
+  (when (equal system-type 'darwin)
+    (let ((resources (concat sclang-osx-app-path "/Contents/Resources")))
+      (setq
+       sclang-runtime-directory (concat resources "/SCClassLibrary")
+       sclang-program (concat resources "/sclang")
+       sclang-extension-path (list (concat sclang-osx-sc-app-support "/Extensions"))
+
+       sclang-help-path
+       (list (concat sclang-osx-sc-app-support "/Help")
+             (concat sclang-osx-sc-app-support "/Help/Reference")
+             (concat sclang-osx-sc-app-support "/Help/Classes"))))))
 
 ;;;###autoload
 (define-minor-mode sclang-extensions-mode
@@ -127,18 +181,34 @@ Either eval the current region or the top level grouping at point."
   nil " scl" sclang-extensions-mode-map
   (cond
 
-   ;; Enable mode.
+   ;; Enable mode --------------------------------------------------------------
    (sclang-extensions-mode
-    (when sclang-bury-post-on-start?
-      (scl:bury-post-buffer)
-      (add-hook 'sclang-mode-hook 'scl:bury-post-buffer t))
 
+    ;; Configure paths for OS X.
+    (when sclang-reassign-osx-paths?
+      (sclang-set-osx-paths))
+
+    ;; sclang-mode uses indent-tabs-mode by default - WHYYYY!?!
+    (setq-local indent-tabs-mode nil)
+
+    ;; Enable associated modes.
     (sclang-ac-mode +1)
     (sclang-doc-mode +1)
     (sclang-post-mode +1)
+
+    ;; Start up SuperCollider.
+    (when sclang-run-supercollider-if-not-active?
+      (unless (or (equal (buffer-name) sclang-post-buffer)
+                  (sclang-get-process))
+        (sclang-start)))
+
+    ;; Hide the post buffer.
+    (when sclang-bury-post-on-start?
+      (scl:bury-post-buffer))
+
     (run-hooks 'sclang-extensions-mode-hook))
 
-   ;; Disable mode.
+   ;; Disable mode -------------------------------------------------------------
    (t
     ;; Deactivate minor modes.
     (remove-hook 'sclang-mode-hook 'scl:bury-post-buffer t)
