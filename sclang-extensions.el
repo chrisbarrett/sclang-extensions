@@ -83,12 +83,19 @@ Used to set the location of documentation paths."
   :group 'sclang-extensions)
 
 (defcustom sclang-reassign-osx-paths? t
-  "If non-nil, override the default sclang executable and library paths.
+  "If non-nil, override the default sclang executable and library paths on OS X.
 This is necessary because all the supporting files have been moved into the app bundle."
   :group 'sclang-extensions
   :type 'boolean)
 
 ;;; ----------------------------------------------------------------------------
+
+;;; Declare special variables from sclang to suppress compiler warnings.
+(defvar sclang-post-buffer)
+(defvar sclang-extension-path)
+(defvar sclang-help-path)
+(defvar sclang-program)
+(defvar sclang-runtime-directory)
 
 (defun scl:visual-expression-start ()
   "Return the beginning of the current expression.
