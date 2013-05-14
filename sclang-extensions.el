@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013 Chris Barrett
 
 ;; Author: Chris Barrett <chris.d.barrett@me.com>
-;; Version: 2.2.13
+;; Version: 2.2.14
 ;; Package-Requires: ((auto-complete "1.4.0")(s "1.3.1")(dash "1.2.0")(emacs "24.1"))
 ;; Keywords: sclang supercollider languages tools
 
@@ -42,6 +42,7 @@
 (require 'sclang-post-mode)
 (require 'dash)
 (autoload 'sclang-eval-region "sclang-interp")
+(autoload 'sclang-mode "sclang-mode")
 (autoload 'sclang-start "sclang-interp")
 (autoload 'sclang-get-process "sclang-interp")
 (autoload 'sclang-eval-line "sclang-interp")
@@ -60,6 +61,11 @@ The Post buffer becomes much less useful when you use `sclang-post-mode'."
 
 (defcustom sclang-extensions-mode-hook nil
   "Hook run after `sclang-extensions-mode' is initialized."
+  :group 'sclang-extensions
+  :type 'hook)
+
+(defcustom sclang-post-buffer-mode-hook nil
+  "Hook run after `sclang-post-buffer-mode' is initialized."
   :group 'sclang-extensions
   :type 'hook)
 
@@ -146,21 +152,38 @@ Either eval the current region or the top level grouping at point."
     (define-key km (kbd "M-a")     'sclang-expression-start)
     (define-key km (kbd "C-x C-e") 'sclang-eval-last-expression)
     (define-key km (kbd "C-c C-c") 'sclang-eval-dwim)
-    (define-key km (kbd "C-c C-z") 'sclang-switch-between-src-and-post)
+    (define-key km (kbd "C-c C-z") 'sclang-switch-to-post)
     (define-key km (kbd "M-q")     'indent-buffer)
     (define-key km (kbd "s-.")     'sclang-main-stop)
     (define-key km (kbd "C-c C-l") 'sclang-eval-document)
     km))
 
 ;;;###autoload
-(defun sclang-switch-between-src-and-post ()
+(defun sclang-switch-to-post ()
   "Switch between the Post buffer and the last sclang buffer."
   (interactive)
-  (if (equal (buffer-name) sclang-post-buffer)
-      (->> (cdr (buffer-list))
-        (--first (with-current-buffer it (equal major-mode 'sclang-mode)))
-        (switch-to-buffer))
-    (switch-to-buffer sclang-post-buffer)))
+  (-if-let (win (->> (window-list)
+                  (--first (with-current-buffer (window-buffer it)
+                             (derived-mode-p 'sclang-post-buffer-mode)))))
+    (select-window win)
+    (->> (buffer-list)
+      (--first (with-current-buffer it
+                 (derived-mode-p 'sclang-post-buffer-mode)))
+      (switch-to-buffer))))
+
+;;;###autoload
+(defun sclang-switch-to-src ()
+  "Switch to the last sclang source file."
+  (interactive)
+  (-if-let (win (->> (window-list)
+                  (--first (with-current-buffer (window-buffer it)
+                             (derived-mode-p 'sclang-mode)))))
+    (select-window win)
+    (->> (buffer-list)
+      (--first (with-current-buffer it
+                 (derived-mode-p 'sclang-mode)))
+      (switch-to-buffer))))
+
 
 (defun scl:bury-post-buffer ()
   "Hide the SuperCollider Post buffer."
@@ -182,10 +205,20 @@ Either eval the current region or the top level grouping at point."
              (concat sclang-osx-sc-app-support "/Help/Reference")
              (concat sclang-osx-sc-app-support "/Help/Classes"))))))
 
+;;; Define a distinct mode for the sclang post buffer so that it can be
+;;;individually customised.
+
+;;;###autoload
+(define-derived-mode sclang-post-buffer-mode special-mode
+  "SCPost"
+  "Major mode for sclang post buffer."
+  (read-only-mode -1)
+  (local-set-key (kbd "C-c C-z") 'sclang-switch-to-src))
+
 ;;;###autoload
 (define-minor-mode sclang-extensions-mode
   "Enable all extensions to the sclang Emacs mode."
-  nil " scl" sclang-extensions-mode-map
+  nil " sclang+" sclang-extensions-mode-map
   (cond
 
    ;; Enable mode --------------------------------------------------------------
@@ -222,6 +255,12 @@ Either eval the current region or the top level grouping at point."
     (sclang-ac-mode -1)
     (sclang-post-mode -1)
     (sclang-doc-mode -1))))
+
+(defadvice sclang-mode (around use-sclang-post-buffer-mode activate)
+  "Use sclang-post-buffer-mode instead of sclang-mode for the post buffer."
+  (if (equal sclang-post-buffer (buffer-name))
+      (sclang-post-buffer-mode)
+    ad-do-it))
 
 (provide 'sclang-extensions)
 
