@@ -231,15 +231,14 @@
   "Minor mode that provides more intelligent auto-complete behaviour for SuperCollider."
   nil nil sclang-ac-mode-map
   (when sclang-ac-mode
-    ;; Override the sources defined by sclang-mode.
-    (setq ac-sources '(ac-source-yasnippet
-                       ac-source-sclang-ivars
-                       ac-source-sclang-classes
-                       ac-source-sclang-methods
-                       ac-source-sclang-keyword-args
-                       ac-source-sclang-toplevel-functions))
+    (add-to-list 'ac-modes 'sclang-mode)
     (auto-complete-mode +1)
-    (run-hooks 'sclang-ac-mode-hook)))
+    (setq-local ac-sources '(ac-source-yasnippet
+                             ac-source-sclang-ivars
+                             ac-source-sclang-classes
+                             ac-source-sclang-methods
+                             ac-source-sclang-keyword-args
+                             ac-source-sclang-toplevel-functions))))
 
 (provide 'sclang-ac-mode)
 
