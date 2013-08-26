@@ -244,9 +244,7 @@ Either eval the current region or the top level grouping at point."
 
     ;; Hide the post buffer.
     (when sclang-bury-post-on-start?
-      (scl:bury-post-buffer))
-
-    (run-hooks 'sclang-extensions-mode-hook))
+      (scl:bury-post-buffer)))
 
    ;; Disable mode -------------------------------------------------------------
    (t

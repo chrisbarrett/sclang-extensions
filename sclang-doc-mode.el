@@ -222,8 +222,7 @@ LIST-STR is a string representation of a list."
                  (equal sclang-post-buffer (buffer-name)))
       (make-local-variable 'eldoc-documentation-function)
       (setq eldoc-documentation-function 'scl:minibuffer-doc)
-      (eldoc-mode +1)
-      (run-hooks 'sclang-doc-mode-hook)))
+      (eldoc-mode +1)))
    ;; Deactivate mode.
    (t
     (eldoc-mode -1)
