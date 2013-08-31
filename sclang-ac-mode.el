@@ -233,8 +233,7 @@
   (when sclang-ac-mode
     (add-to-list 'ac-modes 'sclang-mode)
     (auto-complete-mode +1)
-    (setq-local ac-sources '(ac-source-yasnippet
-                             ac-source-sclang-ivars
+    (setq-local ac-sources '(ac-source-sclang-ivars
                              ac-source-sclang-classes
                              ac-source-sclang-methods
                              ac-source-sclang-keyword-args
