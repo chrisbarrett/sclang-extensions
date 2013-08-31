@@ -1,10 +1,10 @@
 TEST_D     = $(abspath ./test)
 ELPA       = $(abspath ./elpa)
 
-CARTON     = carton
+CASK       = cask
 EMACS      = emacs --batch -q -l package
 EMACS_D    = $(shell $(EMACS) --eval '(princ (expand-file-name user-emacs-directory))')
-VERSION    = $(shell carton version)
+VERSION    = $(shell cask version)
 
 PACKAGE_DIR = sclang-extensions-$(VERSION)
 PACKAGE_TAR = $(abspath sclang-extensions-$(VERSION).tar)
@@ -38,11 +38,11 @@ uninstall :
 
 # Install package dependencies.
 $(ELPA) :
-	$(CARTON) install
+	$(CASK) install
 
 .PHONY: deps
 deps : $(ELPA)
-	$(CARTON) update
+	$(CASK) update
 
 .PHONY: tags
 tags :
@@ -89,15 +89,15 @@ package : $(MANIFEST) $(PACKAGE_INCLUDES)
 
 # Generate package file
 $(MANIFEST) :
-	$(CARTON) package
+	$(CASK) package
 
 # Byte-compile Elisp files
 %.elc : .%el
-	$(CARTON) exec $(EMACS) $(LOAD_EL) -f batch-byte-compile $<
+	$(CASK) exec $(EMACS) $(LOAD_EL) -f batch-byte-compile $<
 
 # ----------------------------------------------------------------------------
 # Tests
 
 .PHONY: test
 test :
-	$(CARTON) exec $(EMACS) -l $(TEST_RUNNER) -f 'scl:run-tests-batch'
+	$(CASK) exec $(EMACS) -l $(TEST_RUNNER) -f 'scl:run-tests-batch'
