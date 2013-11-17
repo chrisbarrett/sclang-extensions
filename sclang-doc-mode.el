@@ -230,8 +230,4 @@ LIST-STR is a string representation of a list."
 
 (provide 'sclang-doc-mode)
 
-;; Local Variables:
-;; lexical-binding: t
-;; End:
-
 ;;; sclang-doc-mode.el ends here

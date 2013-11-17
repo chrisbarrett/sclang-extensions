@@ -86,8 +86,4 @@ string that was written to the Post buffer."
 
 (provide 'sclang-post-mode)
 
-;; Local Variables:
-;; lexical-binding: t
-;; End:
-
 ;;; sclang-post-mode.el ends here

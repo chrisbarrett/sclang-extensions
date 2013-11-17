@@ -60,7 +60,6 @@
 (provide 'test-runner)
 
 ;; Local Variables:
-;; lexical-binding: t
 ;; no-byte-compile: t
 ;; End:
 

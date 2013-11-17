@@ -262,8 +262,4 @@ Either eval the current region or the top level grouping at point."
 
 (provide 'sclang-extensions)
 
-;; Local Variables:
-;; lexical-binding: t
-;; End:
-
 ;;; sclang-extensions.el ends here
