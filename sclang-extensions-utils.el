@@ -366,7 +366,6 @@ closing brace position."
 
 ;; Local Variables:
 ;; byte-compile-warnings: (not obsolete cl-functions)
-;; lexical-binding: t
 ;; End:
 
 ;;; sclang-extensions-utils.el ends here

@@ -241,8 +241,4 @@
 
 (provide 'sclang-ac-mode)
 
-;; Local Variables:
-;; lexical-binding: t
-;; End:
-
 ;;; sclang-ac-mode.el ends here
