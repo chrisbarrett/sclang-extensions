@@ -33,7 +33,7 @@ have to keep the Post window open all the time.
 
 # Installation
 
-`sclang-extensions` is available on [MELPA](http://melpa.milkbox.net/). This is
+`sclang-extensions` is available on [MELPA](https://melpa.org/). This is
 the easiest way to install.
 
 If you haven't set up MELPA, you'll need to add the following to your init.el
@@ -42,7 +42,7 @@ If you haven't set up MELPA, you'll need to add the following to your init.el
 ;;; Initialize packages.
 
 (require 'package)
-(add-to-list 'package-archives '("melpa" . "http://melpa.milkbox.net/packages/"))
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
 (package-initialize)
 (unless package-archive-contents (package-refresh-contents))
 ```
