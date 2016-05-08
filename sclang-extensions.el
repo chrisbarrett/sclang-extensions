@@ -194,10 +194,13 @@ Either eval the current region or the top level grouping at point."
 (defun sclang-set-osx-paths ()
   "Set sclang paths to modern values on OS X."
   (when (equal system-type 'darwin)
-    (let ((resources (concat sclang-osx-app-path "/Contents/Resources")))
+    (let ((macos (concat sclang-osx-app-path "/Contents/MacOS"))
+          (resources (concat sclang-osx-app-path "/Contents/Resources")))
       (setq
        sclang-runtime-directory (concat resources "/SCClassLibrary")
-       sclang-program (concat resources "/sclang")
+       sclang-program (if (file-exists-p (concat macos "/sclang"))
+                          (concat macos "/sclang") ; SuperCollider 3.7.x
+                        (concat resources "/sclang")) ; SuperCollider 3.6.x
        sclang-extension-path (list (concat sclang-osx-sc-app-support "/Extensions"))
 
        sclang-help-path
