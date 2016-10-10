@@ -29,6 +29,35 @@ SuperCollider help system.
 Displays feedback from SuperCollider in the minibuffer. This means you no longer
 have to keep the Post window open all the time.
 
+## ob-sclang
+
+Support to evaluate sclang Org-mode src block with function `sclang-eval-string`.
+
+For example:
+
+```org
+#+BEGIN_SRC sclang :results none
+"Hello World".postln;
+#+END_SRC
+```
+
+*NOTE* Temporary output to org-babel result output is not supported.
+Because `sclang-eval-string` will send output to Sclang Post Buffer.
+And command line `sclang` execute will not automatically stop after finished execution.
+
+```org
+#+BEGIN_SRC sclang :results none
+// modulate a sine frequency and a noise amplitude with another sine
+// whose frequency depends on the horizontal mouse pointer position
+{
+  var x = SinOsc.ar(MouseX.kr(1, 100));
+  SinOsc.ar(300 * x + 800, 0, 0.1)
+  +
+  PinkNoise.ar(0.1 * x + 0.1)
+}.play;
+#+END_SRC
+```
+
 ---
 
 # Installation
